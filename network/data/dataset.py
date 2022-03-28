@@ -22,7 +22,7 @@ class Shape2MotionDataset(Dataset):
 
         if self.stage == Stage.stage1:
             filter_input_list = ['input_pts', 'joint_all_directions', 'gt_joints', 'gt_proposals']
-
+            
             input_pts = torch.tensor(ins['input_pts'][:], dtype=torch.float32)
             gt_dict = {}
             for k, v in ins.items():

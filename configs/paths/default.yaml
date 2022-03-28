@@ -49,11 +49,13 @@ preprocess:
 network:
   output_dir: "${paths.result_dir}/network"
   stage1:
+    folder_name: "stage1"
+    path: "${paths.network.output_dir}/${paths.network.stage1.folder_name}"
     train:
-      output_dir: "${paths.network.output_dir}/train/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
+      output_dir: "${paths.network.stage1.path}/train/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
       model_filename: "model_%09d.pth"
       best_model_filename: "best_model.pth"
     test:
-      output_dir: "${paths.network.output_dir}/test/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
+      output_dir: "${paths.network.stage1.path}/test/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
       inference_result: "inference_result.h5"
       visualization_folder: "visualization"

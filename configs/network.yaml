@@ -2,7 +2,7 @@ version: "v1.0"
 
 device: "cuda:0"
 
-eval_only: false
+eval_only: true
 random_seed: 1
 
 train:

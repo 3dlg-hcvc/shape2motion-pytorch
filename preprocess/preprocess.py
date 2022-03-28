@@ -8,6 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 from tools.utils import io
 
 from proc_stage1 import ProcStage1
+from proc_stage2 import ProcStage2
 from network.utils import Stage
 
 log = logging.getLogger('preprocess')
@@ -28,6 +29,12 @@ def main(cfg: DictConfig):
         process_stage1.process()
         end = time.time()
         log.info(f'Stage1 process time {end - start}')
+    elif Stage[cfg.stage] == Stage.stage2:
+        start = time.time()
+        process_stage2 = ProcStage2(cfg)
+        process_stage2.process()
+        end = time.time()
+        log.info(f'Stage2 process time {end - start}')
 
 
 if __name__ == "__main__":

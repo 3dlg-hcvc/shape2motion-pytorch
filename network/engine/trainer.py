@@ -15,6 +15,8 @@ from network import utils
 from network.utils import AvgRecorder, Stage
 from tools.utils import io
 
+from preprocess.proc_stage2 import ProcStage2
+
 import pdb
 
 class Shape2MotionTrainer:
@@ -64,6 +66,17 @@ class Shape2MotionTrainer:
                 ),
                 batch_size=self.cfg.network.batch_size,
                 shuffle=True,
+                num_workers=self.cfg.network.num_workers,
+            )
+
+            self.log.info(f'Num {len(self.train_loader)} batches in train loader')
+        else:
+            self.train_loader = torch.utils.data.DataLoader(
+                Shape2MotionDataset(
+                    self.data_path['train'], num_points=self.cfg.network.num_points, stage=self.stage
+                ),
+                batch_size=self.cfg.network.batch_size,
+                shuffle=False,
                 num_workers=self.cfg.network.num_workers,
             )
 
@@ -164,24 +177,26 @@ class Shape2MotionTrainer:
                     .format(epoch, self.max_epochs, loss_log, io_time.sum, io_time.avg, to_gpu_time.sum,
                             to_gpu_time.avg, network_time.sum, network_time.avg, time() - start_time, remain_time))
 
-    def eval_epoch(self, epoch, save_results=False):
+    def eval_epoch(self, epoch, save_results=False, data_set='test'):
         self.log.info(f'>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
         val_error = {
             'total_loss': AvgRecorder()
         }
         if save_results:
             io.ensure_dir_exists(self.test_cfg.output_dir)
-            inference_path = os.path.join(self.test_cfg.output_dir,
-                                          self.stage.value + '_' + self.test_cfg.inference_result)
+            if self.stage == Stage.stage1:
+                inference_path = os.path.join(self.test_cfg.output_dir,
+                                            data_set + '_' + self.stage.value + '_' + self.test_cfg.inference_result)
             self.test_result = h5py.File(inference_path, 'w')
             self.test_result.attrs['stage'] = self.stage.value
 
 
         # test the model on the val set and write the results into tensorboard
         self.model.eval()
+        data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
-            for i, (input_pts, gt_dict, id) in enumerate(self.test_loader):
+            for i, (input_pts, gt_dict, id) in enumerate(data_loader):
                 # Move the tensors to the device
                 input_pts = input_pts.to(self.device)
                 gt = {}
@@ -190,7 +205,7 @@ class Shape2MotionTrainer:
 
                 pred = self.model(input_pts)
                 if save_results:
-                    self.save_results(pred, id)
+                    self.save_results(pred, input_pts, gt, id, data_set)
                 
                 loss_dict = self.model.losses(pred, gt)
                 loss_weight = self.cfg.network.loss_weight
@@ -283,21 +298,19 @@ class Shape2MotionTrainer:
         epoch = checkpoint['epoch']
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.to(self.device)
+        
+        self.proc_stage2 = ProcStage2(self.cfg)
+        self.proc_stage2.set_gt_datapath(self.data_path['train'])
+        self.eval_epoch(epoch, save_results=True, data_set='train')
+        self.proc_stage2.stop()
+        
+        self.proc_stage2.set_gt_datapath(self.data_path['test'])
+        self.eval_epoch(epoch, save_results=True, data_set='test')
+        self.proc_stage2.stop()
 
-        self.eval_epoch(epoch, save_results=True)
-
-    def save_results(self, pred, id):
+    def save_results(self, pred, input_pts, gt, id, data_set):
         # Save the prediction results into hdf5
-        batch_size = pred['anchor_pts'].shape[0]
-        for b in range(batch_size):
-            group = self.test_result.create_group(f'{id[b]}')
-            group.create_dataset("pred_anchor_pts", data=pred['anchor_pts'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_joint_direction_cat", data=pred['joint_direction_cat'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_joint_direction_reg", data=pred['joint_direction_reg'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_joint_origin_reg", data=pred['joint_origin_reg'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_joint_type", data=pred['joint_type'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_simmat", data=pred['simmat'][b].detach().cpu().numpy(), compression="gzip")
-            group.create_dataset("pred_confidence", data=pred['confidence'][b].detach().cpu().numpy(), compression="gzip")
+        self.proc_stage2.process(pred, input_pts, gt, id)
 
     def resume_train(self, model_path=None):
         if not model_path or not io.file_exist(model_path):

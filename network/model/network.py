@@ -137,13 +137,13 @@ class Shape2Motion(nn.Module):
             mask = gt['anchor_pts'].float()
 
             # pred['pred_anchor_pts']: B*N*3K, gt['npcs_per_point']: B*N*3, gt_seg_onehot: B*N*K
-            anchor_pts_loss = loss.compute_anchor_pts_loss(
+            anchor_pts_loss, anchor_pts_recall, anchor_pts_accuracy = loss.compute_anchor_pts_loss(
                 pred['anchor_pts'],
                 gt['anchor_pts'],
                 mask=mask
             )
 
-            joint_direction_cat_loss = loss.compute_joint_direction_cat_loss(
+            joint_direction_cat_loss, joint_direction_cat_acc = loss.compute_joint_direction_cat_loss(
                 pred['joint_direction_cat'],
                 gt['joint_direction_cat'],
                 mask=mask
@@ -161,7 +161,7 @@ class Shape2Motion(nn.Module):
                 mask=mask
             )
 
-            joint_type_loss = loss.compute_joint_type_loss(
+            joint_type_loss, joint_type_acc = loss.compute_joint_type_loss(
                 pred['joint_type'],
                 gt['joint_type'],
                 mask=mask
