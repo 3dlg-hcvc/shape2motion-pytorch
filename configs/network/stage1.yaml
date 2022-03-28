@@ -1,0 +1,16 @@
+defaults:
+  - default
+  - _self_ 
+
+stage: "stage1"
+max_epochs: 101
+
+# Loss weights
+loss_weight:
+  anchor_pts_loss: 1.0
+  joint_direction_cat_loss: 1.0
+  joint_direction_reg_loss: 100.0
+  joint_origin_reg_loss: 1.0
+  joint_type_loss: 1.0
+  simmat_loss: 1.0
+  confidence_loss: 100.0

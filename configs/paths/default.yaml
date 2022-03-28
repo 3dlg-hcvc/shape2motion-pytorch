@@ -1,0 +1,59 @@
+version: "1.0"
+
+dataset_dir: ??? # path to datasets folder
+result_dir: results # path to result folder
+
+preprocess:
+  input_dir: "${paths.dataset_dir}"
+  output_dir: "${paths.result_dir}/preprocess"
+  tmp_dir: "${paths.preprocess.output_dir}/tmp"
+
+  stage1:
+    input: placehold # overwrite based on dataset selection at runtime
+    tmp_output:
+      folder_name: "stage1"
+      path: "${paths.preprocess.tmp_dir}/${paths.preprocess.stage1.tmp_output.folder_name}"
+      input_files: "input_files.csv"
+    output:
+      folder_name: "stage1"
+      path: "${paths.preprocess.output_dir}/${paths.preprocess.stage1.output.folder_name}"
+      split_info: "split_info.csv"
+      train_data: "train.h5"
+      val_data: "val.h5"
+      test_data: "test.h5"
+
+      train: "${paths.preprocess.stage1.output.path}/${paths.preprocess.stage1.output.train_data}"
+      val: "${paths.preprocess.stage1.output.path}/${paths.preprocess.stage1.output.val_data}"
+      test: "${paths.preprocess.stage1.output.path}/${paths.preprocess.stage1.output.test_data}"
+
+  stage2:
+    input:
+      stage1_pred: placehold
+      gt: placehold
+    tmp_output:
+      folder_name: "stage2"
+      path: "${paths.preprocess.tmp_dir}/${paths.preprocess.stage2.tmp_output.folder_name}"
+    output:
+      folder_name: "stage2"
+      path: "${paths.preprocess.output_dir}/${paths.preprocess.stage2.output.folder_name}"
+      train_data: "train.h5"
+      val_data: "val.h5"
+      test_data: "test.h5"
+
+      train: "${paths.preprocess.stage2.output.path}/${paths.preprocess.stage2.output.train_data}"
+      val: "${paths.preprocess.stage2.output.path}/${paths.preprocess.stage2.output.val_data}"
+      test: "${paths.preprocess.stage2.output.path}/${paths.preprocess.stage2.output.test_data}"
+
+
+
+network:
+  output_dir: "${paths.result_dir}/network"
+  stage1:
+    train:
+      output_dir: "${paths.network.output_dir}/train/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
+      model_filename: "model_%09d.pth"
+      best_model_filename: "best_model.pth"
+    test:
+      output_dir: "${paths.network.output_dir}/test/${network.stage}_${now:%Y-%m-%d}_${now:%H-%M-%S}"
+      inference_result: "inference_result.h5"
+      visualization_folder: "visualization"

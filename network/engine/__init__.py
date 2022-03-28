@@ -1,0 +1,1 @@
+from .trainer import Shape2MotionTrainer

@@ -1,0 +1,33 @@
+version: "v1.0"
+
+device: "cuda:0"
+
+eval_only: false
+random_seed: 1
+
+train:
+  continuous: true
+  input_data: path
+  input_model: path
+  save_frequency: 5
+  log_frequency: 1
+
+test:
+  split: "val"
+  input_data: path
+  inference_model: path
+  render:
+      render: false
+      show: false
+      export: false
+
+
+defaults:
+  - paths: default
+  - network: ???
+  - _self_ # https://hydra.cc/docs/upgrades/1.0_to_1.1/default_composition_order
+
+# hydra configuration log output dir
+hydra:
+  run:
+    dir: "${paths.network.output_dir}/logs/${now:%Y-%m-%d}/${now:%H-%M-%S}"
