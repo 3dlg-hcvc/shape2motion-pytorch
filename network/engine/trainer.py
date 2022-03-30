@@ -300,11 +300,11 @@ class Shape2MotionTrainer:
         self.model.to(self.device)
         
         self.proc_stage2 = ProcStage2(self.cfg)
-        self.proc_stage2.set_gt_datapath(self.data_path['train'])
-        self.eval_epoch(epoch, save_results=True, data_set='train')
+        self.proc_stage2.set_gt_datapath(self.data_path['train'], 'train')
+        # self.eval_epoch(epoch, save_results=True, data_set='train')
         self.proc_stage2.stop()
         
-        self.proc_stage2.set_gt_datapath(self.data_path['test'])
+        self.proc_stage2.set_gt_datapath(self.data_path['test'], 'test')
         self.eval_epoch(epoch, save_results=True, data_set='test')
         self.proc_stage2.stop()
 
