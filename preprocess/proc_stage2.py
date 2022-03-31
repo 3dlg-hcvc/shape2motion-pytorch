@@ -14,7 +14,6 @@ from omegaconf import OmegaConf
 from tools.utils import io
 from tools.visualizations import Visualizer
 
-import pdb
 
 log = logging.getLogger('proc_stage2')
 
@@ -85,14 +84,14 @@ class ProcStage2:
         pred_simmat_batch = pred['simmat'].detach().cpu().numpy()
         pred_simmat_batch = (pred_simmat_batch <= 255) * pred_simmat_batch + (pred_simmat_batch > 255) * 255
         pred_simmat_batch = pred_simmat_batch.astype(np.uint8)
-        pred_confidence_batch = pred['confidence'].detach().cpu().numpy()
+        # pred_confidence_batch = pred['confidence'].detach().cpu().numpy()
 
-        gt_anchor_pts_batch = gt['anchor_pts'].detach().cpu().numpy()
-        gt_joint_direction_cat_batch = gt['joint_direction_cat'].detach().cpu().numpy()
-        gt_joint_direction_reg_batch = gt['joint_direction_reg'].detach().cpu().numpy()
-        gt_joint_origin_reg_batch = gt['joint_origin_reg'].detach().cpu().numpy()
-        gt_joint_type_batch = gt['joint_type'].detach().cpu().numpy()
-        gt_simmat_batch = gt['simmat'].detach().cpu().numpy()
+        # gt_anchor_pts_batch = gt['anchor_pts'].detach().cpu().numpy()
+        # gt_joint_direction_cat_batch = gt['joint_direction_cat'].detach().cpu().numpy()
+        # gt_joint_direction_reg_batch = gt['joint_direction_reg'].detach().cpu().numpy()
+        # gt_joint_origin_reg_batch = gt['joint_origin_reg'].detach().cpu().numpy()
+        # gt_joint_type_batch = gt['joint_type'].detach().cpu().numpy()
+        # gt_simmat_batch = gt['simmat'].detach().cpu().numpy()
 
         batch_size = pred_anchor_pts_batch.shape[0]
 
@@ -104,14 +103,14 @@ class ProcStage2:
             pred_joint_origin_reg = pred_joint_origin_reg_batch[b]
             pred_joint_type = pred_joint_type_batch[b]
             pred_simmat = pred_simmat_batch[b]
-            pred_confidence = pred_confidence_batch[b]
+            # pred_confidence = pred_confidence_batch[b]
 
-            gt_anchor_pts = gt_anchor_pts_batch[b]
-            gt_joint_direction_cat = gt_joint_direction_cat_batch[b]
-            gt_joint_direction_reg = gt_joint_direction_reg_batch[b]
-            gt_joint_origin_reg = gt_joint_origin_reg_batch[b]
-            gt_joint_type = gt_joint_type_batch[b]
-            gt_simmat = gt_simmat_batch[b]
+            # gt_anchor_pts = gt_anchor_pts_batch[b]
+            # gt_joint_direction_cat = gt_joint_direction_cat_batch[b]
+            # gt_joint_direction_reg = gt_joint_direction_reg_batch[b]
+            # gt_joint_origin_reg = gt_joint_origin_reg_batch[b]
+            # gt_joint_type = gt_joint_type_batch[b]
+            # gt_simmat = gt_simmat_batch[b]
 
             gt_instance = self.gt_h5[instance_name]
             joint_all_directions = gt_instance['joint_all_directions'][:]
@@ -166,7 +165,7 @@ class ProcStage2:
             for gt_part_idx in gt_score_idx_unique:
                 tmp_index = np.where(gt_score_idx == gt_part_idx)[0]
                 tmp_score_max = gt_score_max[tmp_index]
-                tmp_score_idx = gt_score_idx[tmp_index]
+                # tmp_score_idx = gt_score_idx[tmp_index]
                 # sort in descending order
                 top_score_idx = tmp_score_max[::-1].argsort()[:self.top_k_score_threshold]
                 top_score_max = tmp_score_max[top_score_idx]
@@ -208,7 +207,6 @@ class ProcStage2:
             gt_motions = gt_joints[gt_score_idx]
 
             assert gt_part_proposals.shape[0] == pred_part_proposals.shape[0], 'Mismatch in prediction and gt part proposals'
-
 
             if self.debug:
                 gt_cfg = {}

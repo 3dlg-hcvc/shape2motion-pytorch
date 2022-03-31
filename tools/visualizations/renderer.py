@@ -140,7 +140,11 @@ class Renderer:
                 continue
             transformation = trimesh.geometry.align_vectors(z_axis, axes[i])
             transformation[:3, 3] += pos + axes[i] * (1 - Renderer.head_body_ratio) / 2 * arrow_length
-            arrow = Renderer.draw_arrow(colors[i], radius, arrow_length)
+            if len(colors) != len(positions):
+                color = None
+            else:
+                color = colors[i]
+            arrow = Renderer.draw_arrow(color, radius, arrow_length)
             arrow.apply_transform(transformation)
             arrows.append(arrow)
         self.trimesh_list += arrows

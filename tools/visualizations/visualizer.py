@@ -2,10 +2,10 @@ import numpy as np
 from enum import Enum
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
+import trimesh
 
 from tools.visualizations import Renderer
 
-import pdb
 
 # TODO move to one location
 class JointType(Enum):
@@ -17,6 +17,62 @@ class Visualizer(Renderer):
     def __init__(self, vertices=None, faces=None, colors=None, normals=None, mask=None):
         super().__init__(vertices, faces, colors, normals, mask)
         pass
+
+    def view_stage1_input(self, instance_data):
+        input_pts = instance_data['input_pts'][:]
+        input_xyz = input_pts[:, :3]
+        input_normals = input_pts[:, 3:]
+        anchor_pts_idx = instance_data['anchor_pts'][:]
+        joint_direction_cat = instance_data['joint_direction_cat'][:]
+        joint_direction_reg = instance_data['joint_direction_reg'][:]
+        joint_origin_reg = instance_data['joint_origin_reg'][:]
+        joint_type = instance_data['joint_type'][:]
+        joint_all_directions = instance_data['joint_all_directions'][:]
+        gt_joints = instance_data['gt_joints'][:]
+        gt_proposals = instance_data['gt_proposals'][:]
+        simmat = instance_data['simmat'][:]
+
+        mask = np.zeros_like(gt_proposals)
+        for i in range(len(gt_proposals)):
+            mask[i] = gt_proposals[i]*i
+        mask = np.sum(mask, axis=0)
+
+        viewer = Renderer(vertices=input_xyz, normals=input_normals, mask=mask.astype(int))
+        anchor_pts_xyz = input_xyz[anchor_pts_idx.astype(bool)] + joint_origin_reg[anchor_pts_idx.astype(bool)]
+        for i in range(len(anchor_pts_xyz)):
+            t = np.eye(4)
+            t[:3, 3] = anchor_pts_xyz[i]
+            sphere = trimesh.creation.icosphere(radius=0.005, color=[0.0, 1.0, 0.0])
+            sphere.apply_transform(t)
+            viewer.add_trimesh(sphere)
+
+        joint_origins = gt_joints[:, :3]
+        joint_directions = gt_joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = gt_joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        viewer.show()
+
+        viewer.reset()
+
+        viewer.add_geometry(vertices=input_xyz, normals=input_normals, mask=mask.astype(int))
+        joint_direction_cat = joint_direction_cat[anchor_pts_idx.astype(bool)] - 1
+        joint_direction_reg = joint_direction_reg[anchor_pts_idx.astype(bool), :]
+        joint_directions = joint_all_directions[joint_direction_cat.astype(int), :] + joint_direction_reg
+
+        viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.2)
+        viewer.show()
+
 
     def view_stage2_input(self, gt_cfg, pred_cfg, proposal__downsample=2, joint_downsample=1):
         # gt_cfg.part_proposals
@@ -41,7 +97,7 @@ class Visualizer(Renderer):
             elif gt_joint_type == JointType.BOTH.value:
                 gt_joint_color = [0.0, 1.0, 0.0, 1.0]
 
-            gt_viewer.add_trimesh_arrows([gt_joint_origin], [gt_joint_direction], colors=[gt_joint_color], length=0.5)
+            gt_viewer.add_trimesh_arrows([gt_joint_origin], [gt_joint_direction], colors=[gt_joint_color], length=0.4)
             gt_viewer.show(window_name=f'gt_{i}')
 
             pred_viewer = Renderer(vertices=self.vertices, mask=pred_cfg.part_proposals[i].astype(int))
@@ -52,22 +108,13 @@ class Visualizer(Renderer):
             pred_joint_directions = pred_joint_directions / LA.norm(pred_joint_directions, axis=1).reshape(-1,1)
             pred_joint_type = pred_motions[:, 6]
 
-            rot_cm = plt.get_cmap('Reds')
-            trans_cm = plt.get_cmap('Blues')
-            both_cm = plt.get_cmap('Greens')
+            cm = plt.get_cmap('jet')
 
             pred_joint_scores = pred_cfg.scores[i][anchor_mask]
-            pred_rot_joint_colors = rot_cm(pred_joint_scores)
-            pred_trans_joint_colors = trans_cm(pred_joint_scores)
-            pred_both_joint_colors = both_cm(pred_joint_scores)
-            pred_joint_colors = np.zeros((pred_joint_scores.shape[0], 4))
+            pred_joint_colors = cm(pred_joint_scores)
             rot_mask = pred_joint_type == JointType.ROT.value
             trans_mask = pred_joint_type == JointType.TRANS.value
             both_mask = pred_joint_type == JointType.BOTH.value
-            pred_joint_colors[rot_mask] = pred_rot_joint_colors[rot_mask] + np.asarray([0.2, 0.0, 0.0, 0.0])
-            pred_joint_colors[trans_mask] = pred_trans_joint_colors[trans_mask] + np.asarray([0.0, 0.0, 0.2, 0.0])
-            pred_joint_colors[both_mask] = pred_both_joint_colors[both_mask] + np.asarray([0.0, 0.2, 0.0, 0.0])
-            pred_joint_colors = np.clip(pred_joint_colors, 0.0, 1.0)
 
             pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
             pred_viewer.show(window_name=f'pred_{i}')

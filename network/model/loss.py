@@ -1,24 +1,24 @@
 import torch.nn.functional as F
 import torch
-import pdb
 
 def compute_anchor_pts_loss(pred_anchor_pts, gt_anchor_pts, mask):
     negative_mask = torch.ones_like(mask) - mask
     num_pos = torch.unsqueeze(torch.sum(mask, 1), 1)
     num_neg = torch.unsqueeze(torch.sum(negative_mask, 1), 1)
-    num_points = pred_anchor_pts.size(dim=1)
+    num_points = pred_anchor_pts.size(dim=2)
 
-    anchor_pts_loss = torch.mean(F.cross_entropy(pred_anchor_pts, gt_anchor_pts.long(), reduction='none') * (mask * (num_pos/num_neg) + 1))
-    true_pos = torch.sum(torch.eq(torch.argmax(pred_anchor_pts, axis=1).int(), gt_anchor_pts.int()).float() * mask, axis = 1)
-    anchor_pts_recall = torch.mean(true_pos / torch.sum(mask,axis=1))
-    anchor_pts_accuracy = torch.mean(true_pos / num_points)
+    anchor_pts_loss = torch.mean(F.cross_entropy(pred_anchor_pts, gt_anchor_pts.long(), reduction='none') * (mask * (num_neg/num_pos) + 1))
+    true_anchor_pos = torch.sum(torch.eq(torch.argmax(pred_anchor_pts, axis=1).int(), gt_anchor_pts.int()).float() * mask, axis = 1)
+    true_pts_pos = torch.sum(torch.eq(torch.argmax(pred_anchor_pts, axis=1).int(), gt_anchor_pts.int()).float(), axis = 1)
+    anchor_pts_recall = torch.mean(true_anchor_pos / torch.sum(mask,axis=1))
+    anchor_pts_accuracy = torch.mean(true_pts_pos / num_points)
     return anchor_pts_loss, anchor_pts_recall, anchor_pts_accuracy
 
 def compute_joint_direction_cat_loss(pred_joint_direction_cat, gt_joint_direction_cat, mask):
     mask_sum = torch.sum(mask, axis=1)
     joint_direction_cat_loss = torch.mean(torch.sum(F.cross_entropy(pred_joint_direction_cat, gt_joint_direction_cat.long(), reduction='none') * mask, axis=1) / mask_sum)
-    joint_direction_cat_acc = torch.mean(torch.sum(torch.eq(torch.argmax(pred_joint_direction_cat, axis=1).int(), gt_joint_direction_cat.int()).float()*mask, axis=1) / mask_sum)
-    return joint_direction_cat_loss, joint_direction_cat_acc
+    joint_direction_cat_accuracy = torch.mean(torch.sum(torch.eq(torch.argmax(pred_joint_direction_cat, axis=1).int(), gt_joint_direction_cat.int()).float()*mask, axis=1) / mask_sum)
+    return joint_direction_cat_loss, joint_direction_cat_accuracy
 
 def compute_joint_direction_reg_loss(pred_joint_direction_reg, gt_joint_direction_reg, mask):
     joint_direction_reg_loss = torch.mean(torch.sum(torch.mean(F.smooth_l1_loss(pred_joint_direction_reg, gt_joint_direction_reg, reduction='none'), axis=2) * mask, axis=1) / torch.sum(mask, axis=1))
@@ -31,8 +31,8 @@ def compute_joint_origin_reg_loss(pred_joint_origin_reg, gt_joint_origin_reg, ma
 
 def compute_joint_type_loss(pred_joint_type, gt_joint_type, mask):
     joint_type_loss = torch.mean(torch.sum(F.cross_entropy(pred_joint_type, gt_joint_type.long(), reduction='none') * mask, axis=1) / torch.sum(mask, axis=1))
-    joint_type_acc = torch.mean(torch.sum(torch.eq(torch.argmax(pred_joint_type, axis=1).int(), gt_joint_type.int()).float() * mask,axis = 1) / torch.sum(mask,axis=1))
-    return joint_type_loss, joint_type_acc
+    joint_type_accuracy = torch.mean(torch.sum(torch.eq(torch.argmax(pred_joint_type, axis=1).int(), gt_joint_type.int()).float() * mask,axis = 1) / torch.sum(mask,axis=1))
+    return joint_type_loss, joint_type_accuracy
 
 def compute_simmat_loss(pred_simmat, gt_simmat, neg_simmat, threshold):
     pos = pred_simmat * (gt_simmat + gt_simmat.transpose(1, 2))
