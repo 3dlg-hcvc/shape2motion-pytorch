@@ -6,8 +6,6 @@ from network.model.backbone import PointNet2
 from network.model import loss
 from network.utils import Stage
 
-import pdb
-
 class Shape2Motion(nn.Module):
     def __init__(self, stage, device):
         super().__init__()

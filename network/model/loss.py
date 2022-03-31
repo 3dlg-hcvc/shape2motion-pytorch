@@ -1,6 +1,5 @@
 import torch.nn.functional as F
 import torch
-import pdb
 
 def compute_anchor_pts_loss(pred_anchor_pts, gt_anchor_pts, mask):
     negative_mask = torch.ones_like(mask) - mask

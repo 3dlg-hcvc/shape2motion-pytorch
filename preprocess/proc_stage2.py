@@ -14,7 +14,6 @@ from omegaconf import OmegaConf
 from tools.utils import io
 from tools.visualizations import Visualizer
 
-import pdb
 
 log = logging.getLogger('proc_stage2')
 

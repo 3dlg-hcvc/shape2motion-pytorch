@@ -6,7 +6,6 @@ import trimesh
 
 from tools.visualizations import Renderer
 
-import pdb
 
 # TODO move to one location
 class JointType(Enum):

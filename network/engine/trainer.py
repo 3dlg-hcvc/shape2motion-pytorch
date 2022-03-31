@@ -17,7 +17,6 @@ from tools.utils import io
 
 from preprocess import ProcStage2
 
-import pdb
 
 class Shape2MotionTrainer:
     def __init__(self, cfg, data_path, stage):

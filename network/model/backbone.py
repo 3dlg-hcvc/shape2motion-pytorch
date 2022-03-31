@@ -3,8 +3,6 @@ import torch.nn as nn
 from pointnet2_ops.pointnet2_modules import PointnetFPModule, PointnetSAModule
 import pointnet2_ops.pointnet2_utils as pointnet2_utils
 
-import pdb
-
 class FixedPointNetFPModule(PointnetFPModule):
     def __init__(self, mlp, bn=True):
         super(FixedPointNetFPModule, self).__init__(mlp, bn)

@@ -4,8 +4,6 @@ import torch
 from torch.utils.data import Dataset
 from network.utils import Stage
 
-import pdb
-
 class Shape2MotionDataset(Dataset):
     def __init__(self, data_path, num_points, stage):
         self.f_data = h5py.File(data_path, 'r')
