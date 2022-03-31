@@ -3,6 +3,7 @@ import torch.nn as nn
 from pointnet2_ops.pointnet2_modules import PointnetFPModule, PointnetSAModule
 import pointnet2_ops.pointnet2_utils as pointnet2_utils
 
+import pdb
 
 class FixedPointNetFPModule(PointnetFPModule):
     def __init__(self, mlp, bn=True):
@@ -66,9 +67,9 @@ class PointNet2(nn.Module):
             use_xyz=True,
         )
 
-        self.fp_module_1 = FixedPointNetFPModule(mlp=[256+1024, 256, 256])
-        self.fp_module_2 = FixedPointNetFPModule(mlp=[128+256, 256, 128])
-        self.fp_module_3 = FixedPointNetFPModule(mlp=[128+3, 128, 128, 128])
+        self.fp_module_1 = FixedPointNetFPModule(mlp=[256+1024, 256, 256], bn=True)
+        self.fp_module_2 = FixedPointNetFPModule(mlp=[128+256, 256, 128], bn=True)
+        self.fp_module_3 = FixedPointNetFPModule(mlp=[128+3, 128, 128, 128], bn=True)
 
         self.fc_layer = nn.Sequential(
             nn.Conv1d(128, 128, kernel_size=1, padding=0),

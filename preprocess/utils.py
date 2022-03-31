@@ -5,8 +5,10 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import scipy.io as sio
 import pandas as pd
+import numpy as np
 
 from tools.utils import io
+from tools.visualizations import Visualizer
 
 class DatasetName(Enum):
     SHAPE2MOTION = 1
@@ -86,9 +88,12 @@ class Mat2Hdf5:
         self.data_path = cfg.path
         self.output_path = cfg.output_path
         self.num_processes = cfg.num_processes
+        self.debug = True
 
-    def convert(self):
+    def convert(self, input_file_indices=[], num_output_instances=-1):
         files = io.get_file_list(self.data_path, join_path=True)
+        if len(input_file_indices) > 0:
+            files = np.asarray(files)[input_file_indices]
         
         pool = Pool(processes=self.num_processes)
         proc_impl = Mat2Hdf5Impl(self.cfg)
@@ -99,12 +104,34 @@ class Mat2Hdf5:
 
         h5file = h5py.File(self.output_path, 'w')
         data_info_list = []
+        count_instances = 0
+        stop = False
         for filepath in output_filepath_list:
             with h5py.File(filepath, 'r') as h5f:
                 for key in h5f.keys():
+                    if count_instances == num_output_instances:
+                        stop = True
+                        break
                     h5f.copy(key, h5file)
+                    count_instances += 1
             data_info_list.append(pd.read_csv(os.path.splitext(filepath)[0] + '.csv'))
+            if stop:
+                break
+
+        if self.debug:
+            self.visualize()
+
         h5file.close()
         data_info = pd.concat(data_info_list, ignore_index=True)
         input_info = pd.DataFrame({'file': files})
         return input_info, data_info
+
+    def visualize(self):
+        h5file = h5py.File(self.output_path, 'r')
+
+        for key in h5file.keys():
+            instance_data = h5file[key]
+
+            viz = Visualizer()
+            viz.view_stage1_input(instance_data)
+

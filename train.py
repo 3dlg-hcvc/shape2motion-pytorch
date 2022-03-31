@@ -43,7 +43,7 @@ def main(cfg: DictConfig):
             trainer.train()
         else:
             trainer.resume_train(cfg.train.input_model)
-        trainer.test()
+        # trainer.test()
     else:
         log.info(f'Test on {test_path} with inference model {cfg.test.inference_model}')
         trainer.test(inference_model=cfg.test.inference_model)

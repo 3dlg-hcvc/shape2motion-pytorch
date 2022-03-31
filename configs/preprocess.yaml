@@ -10,9 +10,18 @@ defaults:
   - paths: default
   - _self_ # https://hydra.cc/docs/upgrades/1.0_to_1.1/default_composition_order
 
-train:
+split:
   train_percent: 0.6
   split_seed: 1
+  train:
+    input_file_indices: [0]
+    num_instances: 1
+  val:
+    input_file_indices: [0]
+    num_instances: 1
+  test:
+    input_file_indices: [0]
+    num_instances: 1
 
 stage: "stage1"
 

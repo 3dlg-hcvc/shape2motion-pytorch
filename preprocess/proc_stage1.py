@@ -17,6 +17,7 @@ class ProcStage1:
         self.input_cfg = self.cfg.paths.preprocess.stage1.input
         self.tmp_cfg = self.cfg.paths.preprocess.stage1.tmp_output
         self.output_cfg = self.cfg.paths.preprocess.stage1.output
+        self.split = self.cfg.split
         self.debug = self.cfg.debug
 
         io.ensure_dir_exists(self.output_cfg.path)
@@ -40,21 +41,21 @@ class ProcStage1:
             config.set = 'train'
             config.output_path = os.path.join(self.output_cfg.path, self.output_cfg.train_data)
             converter = Mat2Hdf5(config)
-            train_input, train_info = converter.convert()
+            train_input, train_info = converter.convert(self.split.train.input_file_indices, self.split.train.num_instances)
 
             log.info(f'Stage1 Processing Start with {num_processes} workers on val set')
             config.path = os.path.join(dataset_dir, val_set)
             config.set = 'val'
             config.output_path = os.path.join(self.output_cfg.path, self.output_cfg.val_data)
             converter = Mat2Hdf5(config)
-            val_input, val_info = converter.convert()
+            val_input, val_info = converter.convert(self.split.val.input_file_indices, self.split.val.num_instances)
 
             log.info(f'Stage1 Processing Start with {num_processes} workers on test set')
             config.path = os.path.join(dataset_dir, test_set)
             config.set = 'test'
             config.output_path = os.path.join(self.output_cfg.path, self.output_cfg.test_data)
             converter = Mat2Hdf5(config)
-            test_input, test_info = converter.convert()
+            test_input, test_info = converter.convert(self.split.test.input_file_indices, self.split.test.num_instances)
 
             input_info = pd.concat([train_input, val_input, test_input], keys=['train', 'val', 'test'], names=['set', 'index'])
             split_info = pd.concat([train_info, val_info, test_info], keys=['train', 'val', 'test'], names=['set', 'index'])

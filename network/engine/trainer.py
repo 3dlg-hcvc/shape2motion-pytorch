@@ -15,7 +15,7 @@ from network import utils
 from network.utils import AvgRecorder, Stage
 from tools.utils import io
 
-from preprocess.proc_stage2 import ProcStage2
+from preprocess import ProcStage2
 
 import pdb
 
@@ -129,9 +129,10 @@ class Shape2MotionTrainer:
             loss_weight = self.cfg.network.loss_weight
             # use different loss weight to calculate the final loss
             for k, v in loss_dict.items():
-                if k not in loss_weight:
-                    raise ValueError(f'No loss weight for {k}')
-                loss += loss_weight[k] * v
+                if 'loss' in k:
+                    if k not in loss_weight:
+                        raise ValueError(f'No loss weight for {k}')
+                    loss += loss_weight[k] * v
 
             # Used to calculate the avg loss
             for k, v in loss_dict.items():
@@ -163,8 +164,10 @@ class Shape2MotionTrainer:
         for k, v in epoch_loss.items():
             if k == 'total_loss':
                 self.writer.add_scalar(f'{k}', epoch_loss[k].avg, epoch)
-            else:
+            elif 'loss' in k:
                 self.writer.add_scalar(f'loss/{k}', epoch_loss[k].avg, epoch)
+            else:
+                self.writer.add_scalar(f'accuracy/{k}', epoch_loss[k].avg, epoch)
 
         if epoch % self.cfg.train.log_frequency == 0:
             loss_log = ''
@@ -179,7 +182,7 @@ class Shape2MotionTrainer:
 
     def eval_epoch(self, epoch, save_results=False, data_set='test'):
         self.log.info(f'>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
-        val_error = {
+        val_loss = {
             'total_loss': AvgRecorder()
         }
         if save_results:
@@ -192,7 +195,7 @@ class Shape2MotionTrainer:
 
 
         # test the model on the val set and write the results into tensorboard
-        self.model.eval()
+        # self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
@@ -212,23 +215,27 @@ class Shape2MotionTrainer:
                 loss = torch.tensor(0.0, device=self.device)
                 # use different loss weight to calculate the final loss
                 for k, v in loss_dict.items():
-                    if k not in loss_weight:
-                        raise ValueError(f'No loss weight for {k}')
-                    loss += loss_weight[k] * v
+                    if 'loss' in k:
+                        if k not in loss_weight:
+                            raise ValueError(f'No loss weight for {k}')
+                        loss += loss_weight[k] * v
 
                 # Used to calculate the avg loss
                 for k, v in loss_dict.items():
-                    if k not in val_error.keys():
-                        val_error[k] = AvgRecorder()
-                    val_error[k].update(v)
-                val_error['total_loss'].update(loss)
-        # write the val_error into the tensorboard
+                    if k not in val_loss.keys():
+                        val_loss[k] = AvgRecorder()
+                    val_loss[k].update(v)
+                val_loss['total_loss'].update(loss)
+        # write the val_loss into the tensorboard
         if self.writer is not None:
-            for k, v in val_error.items():
-                self.writer.add_scalar(f'val_error/{k}', val_error[k].avg, epoch)
+            for k, v in val_loss.items():
+                if 'loss' in k:
+                    self.writer.add_scalar(f'val_loss/{k}', val_loss[k].avg, epoch)
+                else:
+                    self.writer.add_scalar(f'val_accuracy/{k}', val_loss[k].avg, epoch)
 
         loss_log = ''
-        for k, v in val_error.items():
+        for k, v in val_loss.items():
             loss_log += '{}: {:.5f}  '.format(k, v.avg)
 
         self.log.info(
@@ -236,7 +243,7 @@ class Shape2MotionTrainer:
                 .format(epoch, self.max_epochs, loss_log, time() - start_time))
         if save_results:
             self.test_result.close()
-        return val_error
+        return val_loss
 
     def train(self, start_epoch=0):
         self.model.train()
@@ -301,7 +308,7 @@ class Shape2MotionTrainer:
         
         self.proc_stage2 = ProcStage2(self.cfg)
         self.proc_stage2.set_gt_datapath(self.data_path['train'], 'train')
-        # self.eval_epoch(epoch, save_results=True, data_set='train')
+        self.eval_epoch(epoch, save_results=True, data_set='train')
         self.proc_stage2.stop()
         
         self.proc_stage2.set_gt_datapath(self.data_path['test'], 'test')

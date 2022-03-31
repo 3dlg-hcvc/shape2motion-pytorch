@@ -6,6 +6,7 @@ from network.model.backbone import PointNet2
 from network.model import loss
 from network.utils import Stage
 
+import pdb
 
 class Shape2Motion(nn.Module):
     def __init__(self, stage, device):
@@ -143,7 +144,7 @@ class Shape2Motion(nn.Module):
                 mask=mask
             )
 
-            joint_direction_cat_loss, joint_direction_cat_acc = loss.compute_joint_direction_cat_loss(
+            joint_direction_cat_loss, joint_direction_cat_accuracy = loss.compute_joint_direction_cat_loss(
                 pred['joint_direction_cat'],
                 gt['joint_direction_cat'],
                 mask=mask
@@ -161,7 +162,7 @@ class Shape2Motion(nn.Module):
                 mask=mask
             )
 
-            joint_type_loss, joint_type_acc = loss.compute_joint_type_loss(
+            joint_type_loss, joint_type_accuracy = loss.compute_joint_type_loss(
                 pred['joint_type'],
                 gt['joint_type'],
                 mask=mask
@@ -201,6 +202,10 @@ class Shape2Motion(nn.Module):
                 'joint_type_loss': joint_type_loss,
                 'simmat_loss': simmat_loss,
                 'confidence_loss': confidence_loss,
+                'anchor_pts_recall': anchor_pts_recall,
+                'anchor_pts_accuracy': anchor_pts_accuracy,
+                'joint_direction_cat_accuracy': joint_direction_cat_accuracy,
+                'joint_type_accuracy': joint_type_accuracy,
             }
 
         return loss_dict
