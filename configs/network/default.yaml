@@ -1,6 +1,89 @@
-stage: ???
-max_epochs: 101
-lr: 0.001
-batch_size: ???
-num_workers: 16
+version: "v1.0"
+
+debug: "${debug}"
+num_workers: "${num_workers}"
+
+device: "cuda:0"
+
+eval_only: false
+random_seed: 1
 num_points: 4096
+
+stage1:
+  name: "stage1"
+  run: true
+  eval_only: "${network.eval_only}"
+  random_seed: "${network.random_seed}"
+
+  train:
+    continuous: false
+    input_data: path
+    input_model: path
+    save_frequency: 5
+    log_frequency: 1
+
+    max_epochs: 100
+    lr: 0.001
+    batch_size: 8
+    num_points: "${network.num_points}"
+
+    # Loss weights
+    loss_weight:
+      anchor_pts_loss: 1.0
+      joint_direction_cat_loss: 1.0
+      joint_direction_reg_loss: 100.0
+      joint_origin_reg_loss: 1.0
+      joint_type_loss: 1.0
+      simmat_loss: 1.0
+      confidence_loss: 100.0
+  
+  test:
+    split: "val"
+    input_data: path
+    inference_model: path
+
+stage2:
+  name: "stage2"
+  run: true
+  eval_only: "${network.eval_only}"
+  random_seed: "${network.random_seed}"
+
+  train:
+    continuous: false
+    input_data: path
+    input_model: path
+    save_frequency: 5
+    log_frequency: 1
+
+    max_epochs: 100
+    lr: 0.001
+    batch_size: 8
+    num_points: "${network.num_points}"
+
+  test:
+    split: "val"
+    input_data: path
+    inference_model: path
+
+stage3:
+  name: "stage3"
+  run: true
+  eval_only: "${network.eval_only}"
+  random_seed: "${network.random_seed}"
+
+  train:
+    continuous: false
+    input_data: path
+    input_model: path
+    save_frequency: 5
+    log_frequency: 1
+
+    max_epochs: 100
+    lr: 0.001
+    batch_size: 8
+    num_points: "${network.num_points}"
+
+  test:
+    split: "val"
+    input_data: path
+    inference_model: path

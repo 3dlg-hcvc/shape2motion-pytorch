@@ -21,6 +21,9 @@ def main(cfg: DictConfig):
 
     stage = Stage[cfg.network.stage]
 
+    import pdb
+    pdb.set_trace()
+
     utils.set_random_seed(cfg.random_seed)
     # torch.set_deterministic(True)
     torch.backends.cudnn.deterministic = True

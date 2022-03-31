@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from network.utils import Stage
+from tools.utils.constant import Stage
 
 class Shape2MotionDataset(Dataset):
     def __init__(self, data_path, num_points, stage):

@@ -1,18 +1,10 @@
 import os
 import random
 import torch
-import h5py
 import numpy as np
-from enum import Enum
 from datetime import datetime
 
 from tools.utils import io
-
-
-class Stage(Enum):
-    stage1 = 'stage1'
-    stage2 = 'stage2'
-    stage3 = 'stage3'
 
 
 def set_random_seed(seed):
@@ -26,15 +18,6 @@ def duration_in_hours(duration):
     t_h, t_m = divmod(t_m, 60)
     duration_time = '{:02d}:{:02d}:{:02d}'.format(int(t_h), int(t_m), int(t_s))
     return duration_time
-
-
-def get_prediction_vertices(pred_segmentation, pred_coordinates):
-    segmentations = np.argmax(pred_segmentation, axis=1)
-    coordinates = pred_coordinates[
-        np.arange(pred_coordinates.shape[0]).reshape(-1, 1),
-        np.arange(3) + 3 * np.tile(segmentations.reshape(-1, 1), [1, 3])]
-    return segmentations, coordinates
-
 
 def get_latest_file_with_datetime(path, folder_prefix, ext, datetime_pattern='%Y-%m-%d_%H-%M-%S'):
     folders = os.listdir(path)

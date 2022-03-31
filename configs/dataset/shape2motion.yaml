@@ -2,7 +2,8 @@ name: "SHAPE2MOTION"
 
 input:
   folder_name: "shape2motion"
-  train_set: 'train'
-  val_set: 'val'
-  test_set: 'test'
+  path: "dataset/shape2motion"
+  train_set: "train"
+  val_set: "val"
+  test_set: "test"
   file_ext: ".mat"

@@ -6,6 +6,7 @@ from tqdm import tqdm
 import scipy.io as sio
 import pandas as pd
 import numpy as np
+from types import SimpleNamespace
 
 from tools.utils import io
 from tools.visualizations import Visualizer
@@ -84,11 +85,13 @@ class Mat2Hdf5Impl:
 
 class Mat2Hdf5:
     def __init__(self, cfg):
+        cfg = SimpleNamespace(**cfg)
         self.cfg = cfg
         self.data_path = cfg.path
         self.output_path = cfg.output_path
         self.num_processes = cfg.num_processes
-        self.debug = True
+        self.debug = cfg.debug
+        self.log = cfg.log
 
     def convert(self, input_file_indices=[], num_output_instances=-1):
         files = io.get_file_list(self.data_path, join_path=True)
@@ -122,6 +125,9 @@ class Mat2Hdf5:
             self.visualize()
 
         h5file.close()
+
+        self.log.info(f'{count_instances} object instances saved in {self.output_path}')
+
         data_info = pd.concat(data_info_list, ignore_index=True)
         input_info = pd.DataFrame({'file': files})
         return input_info, data_info

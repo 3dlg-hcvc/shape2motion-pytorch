@@ -9,20 +9,14 @@ from enum import Enum
 from multiprocessing import Pool, cpu_count
 from types import SimpleNamespace
 
-from omegaconf import OmegaConf
-
 from tools.utils import io
+from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
 
-log = logging.getLogger('proc_stage2')
+log = logging.getLogger('post_stage1')
 
-class JointType(Enum):
-    ROT = 1
-    TRANS = 2
-    BOTH = 3
-
-class ProcStage2Impl:
+class PostStage1Impl:
     def __init__(self, cfg):
         self.cfg = cfg
         # TODO add to config
@@ -227,7 +221,7 @@ class ProcStage2Impl:
         return output_data
 
 
-class ProcStage2:
+class PostStage1:
     def __init__(self, cfg):
         self.cfg = cfg
         self.network_stage1_cfg = self.cfg.paths.network.stage1
@@ -286,13 +280,15 @@ class ProcStage2:
             stage1_data.append(tmp_data)
 
         pool = Pool(processes=self.num_processes)
-        proc_impl = ProcStage2Impl(self.cfg)
+        proc_impl = PostStage1Impl(self.cfg)
         jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage1_data)]
         pool.close()
         pool.join()
         batch_output = [job.get() for job in jobs]
 
         for output_data in batch_output:
+            if output_data is None:
+                continue
             instance_name = output_data['instance_name']
             input_pts = output_data['input_pts']
             motion_scores = output_data['motion_scores']

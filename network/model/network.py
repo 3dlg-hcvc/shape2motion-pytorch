@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from network.model.backbone import PointNet2
 from network.model import loss
-from network.utils import Stage
+from tools.utils.constant import Stage
 
 class Shape2Motion(nn.Module):
     def __init__(self, stage, device):

@@ -1,0 +1,5 @@
+version: "v1.0"
+
+debug: "${debug}"
+num_workers: "${num_workers}"
+run: true

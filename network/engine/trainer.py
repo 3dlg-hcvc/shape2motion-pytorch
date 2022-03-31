@@ -13,10 +13,11 @@ from torch.utils.tensorboard import SummaryWriter
 from network.model import Shape2Motion
 from network.data import Shape2MotionDataset
 from network import utils
-from network.utils import AvgRecorder, Stage
+from network.utils import AvgRecorder
 from tools.utils import io
+from tools.utils.constant import Stage
 
-from preprocess import ProcStage2
+from postprocess import PostStage1
 
 
 class Shape2MotionTrainer:
@@ -306,18 +307,18 @@ class Shape2MotionTrainer:
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.to(self.device)
         
-        self.proc_stage2 = ProcStage2(self.cfg)
-        self.proc_stage2.set_gt_datapath(self.data_path['train'], 'train')
+        self.post_stage1 = PostStage1(self.cfg)
+        self.post_stage1.set_gt_datapath(self.data_path['train'], 'train')
         self.eval_epoch(epoch, save_results=True, data_set='train')
-        self.proc_stage2.stop()
+        self.post_stage1.stop()
         
-        self.proc_stage2.set_gt_datapath(self.data_path['test'], 'test')
+        self.post_stage1.set_gt_datapath(self.data_path['test'], 'test')
         self.eval_epoch(epoch, save_results=True, data_set='test')
-        self.proc_stage2.stop()
+        self.post_stage1.stop()
 
     def save_results(self, pred, input_pts, gt, id, data_set):
         # Save the prediction results into hdf5
-        self.proc_stage2.process(pred, input_pts, gt, id)
+        self.post_stage1.process(pred, input_pts, gt, id)
 
     def resume_train(self, model_path=None):
         if not model_path or not io.file_exist(model_path):
