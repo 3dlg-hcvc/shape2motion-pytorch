@@ -3,6 +3,7 @@ import h5py
 import logging
 import numpy as np
 from time import time
+from tqdm import tqdm
 
 import torch
 import torch.optim as optim
@@ -194,11 +195,11 @@ class Shape2MotionTrainer:
 
 
         # test the model on the val set and write the results into tensorboard
-        # self.model.eval()
+        self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
-            for i, (input_pts, gt_dict, id) in enumerate(data_loader):
+            for i, (input_pts, gt_dict, id) in enumerate(tqdm(data_loader)):
                 # Move the tensors to the device
                 input_pts = input_pts.to(self.device)
                 gt = {}

@@ -9,7 +9,7 @@ setup(
     name="shape2motion",
     version="1.0",
     author="3dlg-hcvc",
-    url="https://github.com/3dlg-hcvc/ANCSH-pytorch.git",
+    url="https://github.com/3dlg-hcvc/shape2motion-pytorch",
     packages=find_packages(exclude=("configs", "tests")),
     include_package_data=True,
     install_requires=requirements,
