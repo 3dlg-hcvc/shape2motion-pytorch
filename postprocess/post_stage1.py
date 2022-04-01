@@ -9,30 +9,23 @@ from enum import Enum
 from multiprocessing import Pool, cpu_count
 from types import SimpleNamespace
 
-from omegaconf import OmegaConf
-
 from tools.utils import io
+from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
 
-log = logging.getLogger('proc_stage2')
+log = logging.getLogger('post_stage1')
 
-class JointType(Enum):
-    ROT = 1
-    TRANS = 2
-    BOTH = 3
-
-class ProcStage2Impl:
+class PostStage1Impl:
     def __init__(self, cfg):
         self.cfg = cfg
-        # TODO add to config
-        self.anchor_pts_threshold = 0.5
-        self.simmat_threshold = 70
-        self.part_proposal_threshold = 0.3
-        self.top_k_score_threshold = 15
-        self.top_score_threshold = 0.4
-        self.move_angle_param = np.pi
-        self.move_trans_param = 1.0
+        self.anchor_pts_threshold = cfg.anchor_pts_threshold
+        self.simmat_threshold = cfg.simmat_threshold
+        self.part_proposal_threshold = cfg.part_proposal_threshold
+        self.top_k_score_threshold = cfg.top_k_score_threshold
+        self.top_score_threshold = cfg.top_score_threshold
+        self.move_angle_param = eval(cfg.move_angle_param)
+        self.move_trans_param = cfg.move_trans_param
 
     def compute_part_proposal_score(self, gt_part_proposals, pred_part_proposals):
         scores = np.zeros((gt_part_proposals.shape[0], pred_part_proposals.shape[0]))
@@ -227,28 +220,21 @@ class ProcStage2Impl:
         return output_data
 
 
-class ProcStage2:
+class PostStage1:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.network_stage1_cfg = self.cfg.paths.network.stage1
-        self.input_cfg = self.cfg.paths.preprocess.stage2.input
-        self.tmp_cfg = self.cfg.paths.preprocess.stage2.tmp_output
-        self.output_cfg = self.cfg.paths.preprocess.stage2.output
-        self.debug = False
-        self.num_processes = 8
+        self.debug = self.cfg.debug
+        self.num_workers = self.cfg.num_workers
 
         self.gt_h5 = None
         self.df = pd.DataFrame()
         self.output_h5 = None
 
-    def set_gt_datapath(self, data_path, data_set):
+    def set_datapath(self, data_path, output_path):
         assert io.is_non_zero_file(data_path), OSError(f'Cannot find file {data_path}')
         self.gt_h5 = h5py.File(data_path)
-        io.ensure_dir_exists(self.output_cfg.path)
-        if data_set == 'train':
-            self.output_h5 = h5py.File(self.output_cfg.train, 'w')
-        else:
-            self.output_h5 = h5py.File(self.output_cfg.val, 'w')
+        io.ensure_dir_exists(os.path.dirname(output_path))
+        self.output_h5 = h5py.File(output_path, 'w')
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()
@@ -285,14 +271,16 @@ class ProcStage2:
             tmp_data['input_pts'] = input_pts[b]
             stage1_data.append(tmp_data)
 
-        pool = Pool(processes=self.num_processes)
-        proc_impl = ProcStage2Impl(self.cfg)
+        pool = Pool(processes=self.num_workers)
+        proc_impl = PostStage1Impl(self.cfg)
         jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage1_data)]
         pool.close()
         pool.join()
         batch_output = [job.get() for job in jobs]
 
         for output_data in batch_output:
+            if output_data is None:
+                continue
             instance_name = output_data['instance_name']
             input_pts = output_data['input_pts']
             motion_scores = output_data['motion_scores']

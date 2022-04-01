@@ -1,0 +1,16 @@
+version: "v1.0"
+
+debug: "${debug}"
+num_workers: "${num_workers}"
+
+stage1:
+  debug: "${postprocess.debug}"
+  num_workers: "${postprocess.num_workers}"
+
+  anchor_pts_threshold: 0.5
+  simmat_threshold: 70
+  part_proposal_threshold: 0.3
+  top_k_score_threshold: 15
+  top_score_threshold: 0.4
+  move_angle_param: "np.pi"
+  move_trans_param: 1.0

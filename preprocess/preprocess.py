@@ -1,41 +1,70 @@
-import time
+import os
 import logging
+import pandas as pd
 
-import hydra
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 
 from tools.utils import io
-
-from proc_stage1 import ProcStage1
-from proc_stage2 import ProcStage2
-from network.utils import Stage
+from preprocess.utils import Mat2Hdf5, DatasetName
+from multiprocessing import cpu_count
 
 log = logging.getLogger('preprocess')
 
-@hydra.main(config_path="../configs", config_name="preprocess")
-def main(cfg: DictConfig):
-    OmegaConf.update(cfg, "paths.dataset_dir", io.to_abs_path(cfg.paths.dataset_dir, get_original_cwd()))
-    OmegaConf.update(cfg, "paths.result_dir", io.to_abs_path(cfg.paths.result_dir, get_original_cwd()))
+class PreProcess:
+    def __init__(self, cfg, paths):
+        self.cfg = cfg
+        self.input_cfg = paths.input
+        self.tmp_cfg = paths.tmp_output
+        self.output_cfg = paths.output
+        self.split = self.cfg.split
+        self.debug = self.cfg.debug
+        self.dataset_dir = paths.input_dir
 
-    OmegaConf.update(cfg, "paths.preprocess.stage1.input", cfg.dataset.input)
+        io.ensure_dir_exists(self.output_cfg.path)
+        io.ensure_dir_exists(self.tmp_cfg.path)
 
-    assert io.folder_exist(cfg.paths.preprocess.input_dir), "Dataset directory doesn't exist"
-    io.ensure_dir_exists(cfg.paths.preprocess.output_dir)
+    def process(self, dataset_name):
+        if DatasetName[dataset_name] == DatasetName.SHAPE2MOTION:
+            log.info(f'Preprocessing dataset {dataset_name}')
+            train_set = self.input_cfg.train_set
+            val_set = self.input_cfg.val_set
+            test_set = self.input_cfg.test_set
 
-    if Stage[cfg.stage] == Stage.stage1:
-        start = time.time()
-        process_stage1 = ProcStage1(cfg)
-        process_stage1.process()
-        end = time.time()
-        log.info(f'Stage1 process time {end - start}')
-    elif Stage[cfg.stage] == Stage.stage2:
-        start = time.time()
-        process_stage2 = ProcStage2(cfg)
-        process_stage2.process()
-        end = time.time()
-        log.info(f'Stage2 process time {end - start}')
+            num_processes = min(cpu_count(), self.cfg.num_workers)
 
+            config = {}
+            config['num_processes'] = num_processes
+            config['tmp_dir'] = self.tmp_cfg.path
+            config['debug'] = self.debug
+            config['log'] = log
 
-if __name__ == "__main__":
-    main()
+            log.info(f'Processing Start with {num_processes} workers on train set')
+            config['path'] = os.path.join(self.dataset_dir, train_set)
+            config['set'] = 'train'
+            config['output_path'] = os.path.join(self.output_cfg.path, self.output_cfg.train_data)
+            converter = Mat2Hdf5(config)
+            train_input, train_info = converter.convert(self.split.train.input_file_indices, self.split.train.num_instances)
+
+            log.info(f'Processing Start with {num_processes} workers on val set')
+            config['path'] = os.path.join(self.dataset_dir, val_set)
+            config['set'] = 'val'
+            config['output_path'] = os.path.join(self.output_cfg.path, self.output_cfg.val_data)
+            converter = Mat2Hdf5(config)
+            val_input, val_info = converter.convert(self.split.val.input_file_indices, self.split.val.num_instances)
+
+            log.info(f'Processing Start with {num_processes} workers on test set')
+            config['path'] = os.path.join(self.dataset_dir, test_set)
+            config['set'] = 'test'
+            config['output_path'] = os.path.join(self.output_cfg.path, self.output_cfg.test_data)
+            converter = Mat2Hdf5(config)
+            test_input, test_info = converter.convert(self.split.test.input_file_indices, self.split.test.num_instances)
+
+            input_info = pd.concat([train_input, val_input, test_input], keys=['train', 'val', 'test'], names=['set', 'index'])
+            split_info = pd.concat([train_info, val_info, test_info], keys=['train', 'val', 'test'], names=['set', 'index'])
+
+            input_info_path = os.path.join(self.tmp_cfg.path, self.tmp_cfg.input_files)
+            input_info.to_csv(input_info_path)
+
+            split_info_path = os.path.join(self.output_cfg.path, self.output_cfg.split_info)
+            split_info.to_csv(split_info_path)
+

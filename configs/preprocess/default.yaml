@@ -1,0 +1,18 @@
+version: "v1.0"
+
+debug: "${debug}"
+num_workers: "${num_workers}"
+run: false
+
+split:
+  train_percent: 0.6
+  split_seed: 1
+  train:
+    input_file_indices: []
+    num_instances: -1
+  val:
+    input_file_indices: []
+    num_instances: -1
+  test:
+    input_file_indices: []
+    num_instances: -1
