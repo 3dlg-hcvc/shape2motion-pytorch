@@ -30,7 +30,7 @@ def main(cfg: DictConfig):
         duration_time = utils.duration_in_hours(end - start)
         log.info(f'Preprocess: time duration {duration_time}')
 
-    if cfg.network.run:
+    if cfg.network.stage1.run:
     
 
 
