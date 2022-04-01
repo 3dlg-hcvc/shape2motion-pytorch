@@ -35,7 +35,7 @@ def main(cfg: DictConfig):
         stage1_network = Network(cfg.network.stage1, cfg.paths.preprocess)
         if not cfg.network.stage1.eval_only:
             stage1_network.train()
-        stage1_network.test()
+        stage1_network.inference()
 
 
 if __name__ == '__main__':

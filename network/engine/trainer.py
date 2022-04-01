@@ -34,11 +34,10 @@ class Shape2MotionTrainer:
 
         self.stage = Stage[stage] if isinstance(stage, str) else stage
 
-        if self.stage == Stage.stage1:
-            self.train_cfg = self.cfg.paths.train
-            self.test_cfg = self.cfg.paths.inference
+        self.train_cfg = self.cfg.paths.train
+        self.test_cfg = self.cfg.paths.inference
 
-        self.max_epochs = cfg.max_epochs
+        self.max_epochs = cfg.train.max_epochs
         self.model = self.build_model()
         self.model.to(device)
         self.log.info(f'Below is the network structure:\n {self.model}')
@@ -53,7 +52,10 @@ class Shape2MotionTrainer:
         self.train_loader = None
         self.test_loader = None
         self.init_data_loader(self.cfg.eval_only)
-        self.test_result = None
+
+        self.postprocess = None
+        if self.stage == Stage.stage1:
+            self.postprocess = PostStage1(self.cfg.postprocess)
 
     def build_model(self):
         model = Shape2Motion(self.stage, self.device)
@@ -187,13 +189,6 @@ class Shape2MotionTrainer:
         val_loss = {
             'total_loss': AvgRecorder()
         }
-        if save_results:
-            io.ensure_dir_exists(self.test_cfg.output_dir)
-            if self.stage == Stage.stage1:
-                inference_path = os.path.join(self.test_cfg.output_dir,
-                                            data_set + '_' + self.stage.value + '_' + self.test_cfg.inference_result)
-            self.test_result = h5py.File(inference_path, 'w')
-            self.test_result.attrs['stage'] = self.stage.value
 
         # test the model on the val set and write the results into tensorboard
         self.model.eval()
@@ -209,7 +204,7 @@ class Shape2MotionTrainer:
 
                 pred = self.model(input_pts)
                 if save_results:
-                    self.save_results(pred, input_pts, gt, id, data_set)
+                    self.postprocess.process(pred, input_pts, gt, id)
                 
                 loss_dict = self.model.losses(pred, gt)
                 loss_weight = self.cfg.train.loss_weight
@@ -242,8 +237,7 @@ class Shape2MotionTrainer:
         self.log.info(
             'Eval Epoch: {}/{} Loss: {} duration: {:.2f}'
                 .format(epoch, self.max_epochs, loss_log, time() - start_time))
-        if save_results:
-            self.test_result.close()
+
         return val_loss
 
     def train(self, start_epoch=0):
@@ -286,13 +280,12 @@ class Shape2MotionTrainer:
         self.writer.close()
 
     def get_latest_model_path(self, with_best=False):
-        io.ensure_dir_exists(self.train_cfg.output_dir)
-        train_result_dir = os.path.dirname(self.train_cfg.output_dir)
-        folder, filename = utils.get_latest_file_with_datetime(train_result_dir,
-                                                               self.stage.value + '_', ext='.pth')
-        model_path = os.path.join(train_result_dir, folder, filename)
+        stage_dir = os.path.dirname(self.cfg.paths.path)
+        folder, filename = utils.get_latest_file_with_datetime(stage_dir, '', subdir=self.train_cfg.folder_name, ext='.pth')
+        model_dir = os.path.join(stage_dir, folder, self.train_cfg.folder_name)
+        model_path = os.path.join(model_dir, filename)
         if with_best:
-            model_path = os.path.join(train_result_dir, folder, self.train_cfg.best_model_filename)
+            model_path = os.path.join(model_dir, self.train_cfg.best_model_filename)
         return model_path
 
     def test(self, inference_model=None):
@@ -304,6 +297,7 @@ class Shape2MotionTrainer:
         date_dir = os.path.dirname(os.path.dirname(inference_model))
         test_output_dir = os.path.join(date_dir, self.test_cfg.folder_name)
         self.test_cfg.output_dir = test_output_dir
+        io.ensure_dir_exists(self.test_cfg.output_dir)
 
         self.log.info(f'Inference on {self.data_path} with inference model {inference_model}')
 
@@ -314,19 +308,14 @@ class Shape2MotionTrainer:
         self.log.info(f'Inferencing with model at epoch {epoch}')
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.to(self.device)
-        
-        self.post_stage1 = PostStage1(self.cfg)
-        self.post_stage1.set_gt_datapath(self.data_path['train'], 'train')
-        self.eval_epoch(epoch, save_results=True, data_set='train')
-        self.post_stage1.stop()
-        
-        self.post_stage1.set_gt_datapath(self.data_path['test'], 'test')
-        self.eval_epoch(epoch, save_results=True, data_set='test')
-        self.post_stage1.stop()
 
-    def save_results(self, pred, input_pts, gt, id, data_set):
         # Save the prediction results into hdf5
-        self.post_stage1.process(pred, input_pts, gt, id)
+        data_sets = ['train', 'test']
+        for data_set in data_sets:
+            output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
+            self.postprocess.set_datapath(self.data_path[data_set], output_path)
+            self.eval_epoch(epoch, save_results=True, data_set=data_set)
+            self.postprocess.stop()
 
     def resume_train(self, model_path=None):
         if not model_path or not io.file_exist(model_path):

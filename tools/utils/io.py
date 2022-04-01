@@ -2,7 +2,8 @@ import os
 import re
 import shutil
 import json
-
+import numpy as np
+from datetime import datetime
 
 def file_extension(file_path):
     return os.path.splitext(file_path)[1]
@@ -22,6 +23,17 @@ def folder_exist(folder_path):
     else:
         return True
 
+def get_latest_folder(path, folder_prefix, datetime_pattern='%Y-%m-%d_%H-%M-%S'):
+    folders = os.listdir(path)
+    folder_pattern = folder_prefix + datetime_pattern
+    matched_folders = np.asarray([fd for fd in folders if fd.startswith(folder_prefix)])
+    if len(matched_folders) == 0:
+        return '', ''
+    timestamps = np.asarray([int(datetime.strptime(fd, folder_pattern).timestamp() * 1000) for fd in matched_folders])
+    sort_idx = np.argsort(timestamps)
+    matched_folders = matched_folders[sort_idx]
+    latest_folder = matched_folders[-1]
+    return latest_folder
 
 def to_abs_path(path, abs_root):
     if not os.path.isabs(path):
