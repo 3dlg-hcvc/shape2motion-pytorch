@@ -1,1 +1,1 @@
-from .engine import Shape2MotionTrainer
+from .train import Network

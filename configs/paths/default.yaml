@@ -29,9 +29,11 @@ network:
     folder_name: "stage1"
     path: "${paths.network.output_dir}/${paths.network.stage1.folder_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
     train:
-      output_dir: "${paths.network.stage1.path}/train"
+      folder_name: "train"
+      output_dir: "${paths.network.stage1.path}/${paths.network.stage1.train.folder_name}"
       model_filename: "model_%09d.pth"
       best_model_filename: "best_model.pth"
     inference:
-      output_dir: "${paths.network.stage1.path}/inference"
+      folder_name: "inference"
+      output_dir: "${paths.network.stage1.path}/${paths.network.stage1.inference.folder_name}"
       inference_result: "inference_result.h5"

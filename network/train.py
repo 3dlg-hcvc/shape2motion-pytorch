@@ -3,11 +3,11 @@ import h5py
 import logging
 import torch
 
-from network import Shape2MotionTrainer, utils
+from network import utils
+from network.engine import Shape2MotionTrainer
 
 from tools.utils import io
 from tools.utils.constant import Stage
-from network import utils
 
 log = logging.getLogger('network')
 
@@ -19,26 +19,25 @@ class Network:
         torch.backends.cudnn.deterministic = True
         os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-        stage = Stage[cfg.name]
+        self.cfg = cfg
+        self.input_cfg = input_cfg
+        self.stage = Stage[cfg.name]
 
-        if stage == Stage.stage1:
-            train_path = cfg.train.input_data if io.file_exist(cfg.train.input_data) else input_cfg.output.train
-            test_path = input_cfg.output.val if cfg.test.split == 'val' else input_cfg.output.test
-            test_path = cfg.test.input_data if io.file_exist(cfg.test.input_data) else test_path
-            data_path = {"train": train_path, "test": test_path}
-
-        trainer = Shape2MotionTrainer(
-            cfg=cfg,
-            data_path=data_path,
-            stage=stage,
+        train_path = cfg.train.input_data if io.file_exist(cfg.train.input_data) else input_cfg.output.train
+        test_path = input_cfg.output.val if cfg.test.split == 'val' else input_cfg.output.test
+        test_path = cfg.test.input_data if io.file_exist(cfg.test.input_data) else test_path
+        self.data_path = {"train": train_path, "test": test_path}
+        self.trainer = Shape2MotionTrainer(
+            cfg=self.cfg,
+            data_path=self.data_path,
+            stage=self.stage,
         )
-        if not cfg.eval_only:
-            log.info(f'Train on {train_path}, validate on {test_path}')
-            if not cfg.train.continuous:
-                trainer.train()
-            else:
-                trainer.resume_train(cfg.train.input_model)
-            trainer.test()
+
+    def train(self):
+        if not self.cfg.train.continuous:
+            self.trainer.train()
         else:
-            log.info(f'Test on {test_path} with inference model {cfg.test.inference_model}')
-            trainer.test(inference_model=cfg.test.inference_model)
+            self.trainer.resume_train(self.cfg.train.input_model)
+
+    def inference(self):
+        self.trainer.test(inference_model=self.cfg.test.inference_model)

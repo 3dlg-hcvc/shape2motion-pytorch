@@ -14,6 +14,10 @@ stage1:
   run: true
   eval_only: "${network.eval_only}"
   random_seed: "${network.random_seed}"
+  paths: "${paths.network.stage1}"
+  device: "${network.device}"
+  debug: "${network.debug}"
+  num_points: "${network.num_points}"
 
   train:
     continuous: false
@@ -25,7 +29,6 @@ stage1:
     max_epochs: 100
     lr: 0.001
     batch_size: 8
-    num_points: "${network.num_points}"
 
     # Loss weights
     loss_weight:
@@ -41,12 +44,17 @@ stage1:
     split: "val"
     input_data: path
     inference_model: path
+    batch_size: 8
 
 stage2:
   name: "stage2"
   run: true
   eval_only: "${network.eval_only}"
   random_seed: "${network.random_seed}"
+  paths: "${paths.network.stage2}"
+  device: "${network.device}"
+  debug: "${network.debug}"
+  num_points: "${network.num_points}"
 
   train:
     continuous: false
@@ -58,18 +66,22 @@ stage2:
     max_epochs: 100
     lr: 0.001
     batch_size: 8
-    num_points: "${network.num_points}"
 
   test:
     split: "val"
     input_data: path
     inference_model: path
+    batch_size: 8
 
 stage3:
   name: "stage3"
   run: true
   eval_only: "${network.eval_only}"
   random_seed: "${network.random_seed}"
+  paths: "${paths.network.stage3}"
+  device: "${network.device}"
+  debug: "${network.debug}"
+  num_points: "${network.num_points}"
 
   train:
     continuous: false
@@ -81,9 +93,9 @@ stage3:
     max_epochs: 100
     lr: 0.001
     batch_size: 8
-    num_points: "${network.num_points}"
 
   test:
     split: "val"
     input_data: path
     inference_model: path
+    batch_size: 8

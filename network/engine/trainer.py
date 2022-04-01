@@ -35,16 +35,16 @@ class Shape2MotionTrainer:
         self.stage = Stage[stage] if isinstance(stage, str) else stage
 
         if self.stage == Stage.stage1:
-            self.train_cfg = self.cfg.paths.network.stage1.train
-            self.test_cfg = self.cfg.paths.network.stage1.test
+            self.train_cfg = self.cfg.paths.train
+            self.test_cfg = self.cfg.paths.inference
 
-        self.max_epochs = cfg.network.max_epochs
+        self.max_epochs = cfg.max_epochs
         self.model = self.build_model()
         self.model.to(device)
         self.log.info(f'Below is the network structure:\n {self.model}')
 
         self.optimizer = optim.Adam(
-            self.model.parameters(), lr=cfg.network.lr, betas=(0.9, 0.99)
+            self.model.parameters(), lr=cfg.train.lr, betas=(0.9, 0.99)
         )
 
         self.data_path = data_path
@@ -61,35 +61,36 @@ class Shape2MotionTrainer:
 
     def init_data_loader(self, eval_only):
         if not eval_only:
+            self.log.info(f'Train on {self.data_path["train"]}, validate on {self.data_path["test"]}')
             self.train_loader = torch.utils.data.DataLoader(
                 Shape2MotionDataset(
-                    self.data_path['train'], num_points=self.cfg.network.num_points, stage=self.stage
+                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
                 ),
-                batch_size=self.cfg.network.batch_size,
+                batch_size=self.cfg.train.batch_size,
                 shuffle=True,
-                num_workers=self.cfg.network.num_workers,
+                num_workers=self.cfg.num_workers,
             )
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')
         else:
             self.train_loader = torch.utils.data.DataLoader(
                 Shape2MotionDataset(
-                    self.data_path['train'], num_points=self.cfg.network.num_points, stage=self.stage
+                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
                 ),
-                batch_size=self.cfg.network.batch_size,
+                batch_size=self.cfg.test.batch_size,
                 shuffle=False,
-                num_workers=self.cfg.network.num_workers,
+                num_workers=self.cfg.num_workers,
             )
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')
 
         self.test_loader = torch.utils.data.DataLoader(
             Shape2MotionDataset(
-                self.data_path['test'], num_points=self.cfg.network.num_points, stage=self.stage
+                self.data_path['test'], num_points=self.cfg.num_points, stage=self.stage
             ),
-            batch_size=self.cfg.network.batch_size,
+            batch_size=self.cfg.test.batch_size,
             shuffle=False,
-            num_workers=self.cfg.network.num_workers,
+            num_workers=self.cfg.num_workers,
         )
         self.log.info(f'Num {len(self.test_loader)} batches in test loader')
 
@@ -127,7 +128,7 @@ class Shape2MotionTrainer:
             network_time.update(time() - s_time)
 
             loss = torch.tensor(0.0, device=self.device)
-            loss_weight = self.cfg.network.loss_weight
+            loss_weight = self.cfg.train.loss_weight
             # use different loss weight to calculate the final loss
             for k, v in loss_dict.items():
                 if 'loss' in k:
@@ -194,7 +195,6 @@ class Shape2MotionTrainer:
             self.test_result = h5py.File(inference_path, 'w')
             self.test_result.attrs['stage'] = self.stage.value
 
-
         # test the model on the val set and write the results into tensorboard
         self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
@@ -212,7 +212,7 @@ class Shape2MotionTrainer:
                     self.save_results(pred, input_pts, gt, id, data_set)
                 
                 loss_dict = self.model.losses(pred, gt)
-                loss_weight = self.cfg.network.loss_weight
+                loss_weight = self.cfg.train.loss_weight
                 loss = torch.tensor(0.0, device=self.device)
                 # use different loss weight to calculate the final loss
                 for k, v in loss_dict.items():
@@ -297,13 +297,21 @@ class Shape2MotionTrainer:
 
     def test(self, inference_model=None):
         if not inference_model or not io.file_exist(inference_model):
+            self.log.info(f'Loading from the most recently saved model')
             inference_model = self.get_latest_model_path(with_best=True)
         if not io.file_exist(inference_model):
             raise IOError(f'Cannot open inference model {inference_model}')
+        date_dir = os.path.dirname(os.path.dirname(inference_model))
+        test_output_dir = os.path.join(date_dir, self.test_cfg.folder_name)
+        self.test_cfg.output_dir = test_output_dir
+
+        self.log.info(f'Inference on {self.data_path} with inference model {inference_model}')
+
         # Load the model
         self.log.info(f'Load model from {inference_model}')
         checkpoint = torch.load(inference_model, map_location=self.device)
         epoch = checkpoint['epoch']
+        self.log.info(f'Inferencing with model at epoch {epoch}')
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.to(self.device)
         

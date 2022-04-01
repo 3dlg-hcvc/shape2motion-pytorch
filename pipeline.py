@@ -6,6 +6,7 @@ from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 
 from tools.utils import io
+from network import Network
 from network import utils
 
 from preprocess import PreProcess
@@ -31,7 +32,10 @@ def main(cfg: DictConfig):
         log.info(f'Preprocess: time duration {duration_time}')
 
     if cfg.network.stage1.run:
-    
+        stage1_network = Network(cfg.network.stage1, cfg.paths.preprocess)
+        if not cfg.network.stage1.eval_only:
+            stage1_network.train()
+        stage1_network.test()
 
 
 if __name__ == '__main__':
