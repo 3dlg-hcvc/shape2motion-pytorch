@@ -48,6 +48,10 @@ def compute_confidence_loss(pred_confidence, pred_simmat, gt_simmat, threshold, 
     confidence_loss = F.mse_loss(pts_iou, torch.squeeze(pred_confidence, 2))
     return confidence_loss
 
+def compute_motion_scores_loss(pred_motion_scores, gt_motion_scores, mask, epsilon):
+    motion_scores_loss = torch.mean(torch.sum(torch.mean(F.smooth_l1_loss(pred_motion_scores - gt_motion_scores), axis=2) * mask, axis=1) / (torch.sum(mask, axis=1) + epsilon))
+    return motion_scores_loss
+
 
 
 
