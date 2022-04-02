@@ -232,7 +232,7 @@ class PostStage1:
 
     def set_datapath(self, data_path, output_path):
         assert io.is_non_zero_file(data_path), OSError(f'Cannot find file {data_path}')
-        self.gt_h5 = h5py.File(data_path)
+        self.gt_h5 = h5py.File(data_path, 'r')
         io.ensure_dir_exists(os.path.dirname(output_path))
         self.output_h5 = h5py.File(output_path, 'w')
 

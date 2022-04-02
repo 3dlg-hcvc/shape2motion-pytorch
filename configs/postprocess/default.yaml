@@ -14,3 +14,7 @@ stage1:
   top_score_threshold: 0.4
   move_angle_param: "np.pi"
   move_trans_param: 1.0
+
+stage2:
+  debug: "${postprocess.debug}"
+  num_workers: "${postprocess.num_workers}"

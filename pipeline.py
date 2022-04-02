@@ -14,14 +14,15 @@ from preprocess import PreProcess
 
 log = logging.getLogger('pipeline')
 
-def get_latest_input_cfg(last_stage_cfg):
+def get_latest_input_cfg(prev_stage_cfg):
     input_cfg = OmegaConf.create()
-    last_stage_dir = os.path.dirname(last_stage_cfg.path)
-    folder, _ = utils.get_latest_file_with_datetime(last_stage_dir, '', subdir=last_stage_cfg.inference.folder_name, ext='.h5')
-    input_dir = os.path.join(last_stage_dir, folder, last_stage_cfg.inference.folder_name)
-    input_cfg.train = os.path.join(input_dir, 'train_' + last_stage_cfg.inference.inference_result)
-    input_cfg.val = os.path.join(input_dir, 'val_' + last_stage_cfg.inference.inference_result)
-    input_cfg.test = os.path.join(input_dir, 'test_' + last_stage_cfg.inference.inference_result)
+    prev_stage_dir = os.path.dirname(prev_stage_cfg.path)
+    folder, _ = utils.get_latest_file_with_datetime(prev_stage_dir, '', subdir=prev_stage_cfg.inference.folder_name, ext='.h5')
+    input_dir = os.path.join(prev_stage_dir, folder, prev_stage_cfg.inference.folder_name)
+    input_cfg.train = os.path.join(input_dir, 'train_' + prev_stage_cfg.inference.inference_result)
+    input_cfg.val = os.path.join(input_dir, 'val_' + prev_stage_cfg.inference.inference_result)
+    input_cfg.test = os.path.join(input_dir, 'test_' + prev_stage_cfg.inference.inference_result)
+    input_cfg.prev_stage_dir = prev_stage_dir
     return input_cfg
 
 
@@ -50,6 +51,7 @@ def main(cfg: DictConfig):
 
     if cfg.network.stage2.run:
         stage2_input_cfg = get_latest_input_cfg(cfg.paths.network.stage1)
+
         stage2_network = Network(cfg.network.stage2, stage2_input_cfg)
         if not cfg.network.stage2.eval_only:
             stage2_network.train()

@@ -17,7 +17,7 @@ from network.utils import AvgRecorder
 from tools.utils import io
 from tools.utils.constant import Stage
 
-from postprocess import PostStage1
+from postprocess import PostStage1, PostStage2
 
 
 class Shape2MotionTrainer:
@@ -56,6 +56,8 @@ class Shape2MotionTrainer:
         self.postprocess = None
         if self.stage == Stage.stage1:
             self.postprocess = PostStage1(self.cfg.postprocess)
+        elif self.stage == Stage.stage2:
+            self.postprocess = PostStage2(self.cfg.postprocess)
 
     def build_model(self):
         model = Shape2Motion(self.stage, self.device)
@@ -282,8 +284,10 @@ class Shape2MotionTrainer:
                     )
         self.writer.close()
 
-    def get_latest_model_path(self, with_best=False):
-        stage_dir = os.path.dirname(self.cfg.paths.path)
+    def get_latest_model_path(self, with_best=False, stage_dir=None):
+        if stage_dir is None or not io.folder_exist(stage_dir):
+            stage_dir = os.path.dirname(self.cfg.paths.path)
+        
         folder, filename = utils.get_latest_file_with_datetime(stage_dir, '', subdir=self.train_cfg.folder_name, ext='.pth')
         model_dir = os.path.join(stage_dir, folder, self.train_cfg.folder_name)
         model_path = os.path.join(model_dir, filename)
@@ -338,3 +342,20 @@ class Shape2MotionTrainer:
             epoch = 0
 
         self.train(epoch)
+
+    def train_with_weights(self, prev_stage_dir):
+        assert io.folder_exist(prev_stage_dir), f'cannot find folder {prev_stage_dir}'
+        model_path = self.get_latest_model_path(self.cfg.test.with_best, prev_stage_dir)
+        assert io.is_non_zero_file(model_path), f'cannot find file {model_path}'
+
+        checkpoint = torch.load(model_path, map_location=self.device)
+        epoch = checkpoint['epoch']
+        self.log.info(f'training with previous stage model from {model_path} at epoch {epoch}')
+        model_dict = self.model.state_dict()
+        ckp_dict = checkpoint['model_state_dict']
+        pretrained_dict = {k: v for k, v in ckp_dict.items() if k.startswith(tuple(self.cfg.model.pretrained_module))}
+        model_dict.update(pretrained_dict)
+        self.model.load_state_dict(model_dict)
+        self.model.to(self.device)
+
+        self.train()

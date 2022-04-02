@@ -112,12 +112,35 @@ class Visualizer(Renderer):
 
             pred_joint_scores = pred_cfg.scores[i][anchor_mask]
             pred_joint_colors = cm(pred_joint_scores)
-            rot_mask = pred_joint_type == JointType.ROT.value
-            trans_mask = pred_joint_type == JointType.TRANS.value
-            both_mask = pred_joint_type == JointType.BOTH.value
 
             pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
             pred_viewer.show(window_name=f'pred_{i}')
 
+    def view_stage2_output(self, gt_cfg, pred_cfg):
+        # gt_cfg.part_proposal
+        # gt_cfg.motion_scores
+        # gt_cfg.anchor_mask
+        
+        # pred_cfg.motion_scores
+        part_mask = gt_cfg.part_proposal.astype(bool)
+        anchor_mask = gt_cfg.anchor_mask.astype(bool)
+        gt_pts_colors = np.tile([0.6, 0.6, 0.6, 1.0], (part_mask.shape[0], 1))
+        gt_pts_colors[part_mask] = [0.1, 0.1, 0.1, 1.0]
+        pred_pts_colors = np.copy(gt_pts_colors)
+
+        cm = plt.get_cmap('jet')
+        gt_joint_scores = gt_cfg.motion_scores[anchor_mask]
+        gt_joint_colors = cm(gt_joint_scores)
+        gt_pts_colors[anchor_mask] = gt_joint_colors
+
+        pred_joint_scores = pred_cfg.motion_scores[anchor_mask]
+        pred_joint_colors = cm(pred_joint_scores)
+        pred_pts_colors[anchor_mask] = pred_joint_colors
+
+        gt_viewer = Renderer(vertices=self.vertices, colors=gt_pts_colors)
+        gt_viewer.show(window_name='gt')
+
+        pred_viewer = Renderer(vertices=self.vertices, colors=pred_pts_colors)
+        pred_viewer.show(window_name='pred')
 
             
