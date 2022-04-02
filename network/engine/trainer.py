@@ -43,7 +43,7 @@ class Shape2MotionTrainer:
         self.log.info(f'Below is the network structure:\n {self.model}')
 
         self.optimizer = optim.Adam(
-            self.model.parameters(), lr=cfg.train.lr, betas=(0.9, 0.99)
+            filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr, betas=(0.9, 0.99)
         )
 
         self.data_path = data_path
@@ -71,6 +71,7 @@ class Shape2MotionTrainer:
                 batch_size=self.cfg.train.batch_size,
                 shuffle=True,
                 num_workers=self.cfg.num_workers,
+                pin_memory=True
             )
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')
@@ -82,6 +83,7 @@ class Shape2MotionTrainer:
                 batch_size=self.cfg.test.batch_size,
                 shuffle=False,
                 num_workers=self.cfg.num_workers,
+                pin_memory=True
             )
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')
@@ -93,6 +95,7 @@ class Shape2MotionTrainer:
             batch_size=self.cfg.test.batch_size,
             shuffle=False,
             num_workers=self.cfg.num_workers,
+            pin_memory=True
         )
         self.log.info(f'Num {len(self.test_loader)} batches in test loader')
 
@@ -125,7 +128,7 @@ class Shape2MotionTrainer:
 
             # Get the loss
             s_time = time()
-            pred = self.model(input_pts)
+            pred = self.model(input_pts, gt)
             loss_dict = self.model.losses(pred, gt)
             network_time.update(time() - s_time)
 
@@ -191,7 +194,7 @@ class Shape2MotionTrainer:
         }
 
         # test the model on the val set and write the results into tensorboard
-        self.model.eval()
+        # self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
@@ -202,7 +205,7 @@ class Shape2MotionTrainer:
                 for k, v in gt_dict.items():
                     gt[k] = v.to(self.device)
 
-                pred = self.model(input_pts)
+                pred = self.model(input_pts, gt)
                 if save_results:
                     self.postprocess.process(pred, input_pts, gt, id)
                 
@@ -291,7 +294,7 @@ class Shape2MotionTrainer:
     def test(self, inference_model=None):
         if not inference_model or not io.file_exist(inference_model):
             self.log.info(f'Loading from the most recently saved model')
-            inference_model = self.get_latest_model_path(with_best=True)
+            inference_model = self.get_latest_model_path(with_best=self.cfg.test.with_best)
         if not io.file_exist(inference_model):
             raise IOError(f'Cannot open inference model {inference_model}')
         date_dir = os.path.dirname(os.path.dirname(inference_model))
@@ -312,7 +315,10 @@ class Shape2MotionTrainer:
         # Save the prediction results into hdf5
         data_sets = ['train', 'test']
         for data_set in data_sets:
-            output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
+            if data_set == 'train':
+                output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
+            else:
+                output_path = os.path.join(self.test_cfg.output_dir, f'{self.cfg.test.split}_' + self.test_cfg.inference_result)
             self.postprocess.set_datapath(self.data_path[data_set], output_path)
             self.eval_epoch(epoch, save_results=True, data_set=data_set)
             self.postprocess.stop()
