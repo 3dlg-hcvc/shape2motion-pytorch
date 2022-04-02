@@ -128,7 +128,7 @@ class Shape2MotionTrainer:
 
             # Get the loss
             s_time = time()
-            pred = self.model(input_pts)
+            pred = self.model(input_pts, gt)
             loss_dict = self.model.losses(pred, gt)
             network_time.update(time() - s_time)
 
@@ -194,7 +194,7 @@ class Shape2MotionTrainer:
         }
 
         # test the model on the val set and write the results into tensorboard
-        self.model.eval()
+        # self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
@@ -205,7 +205,7 @@ class Shape2MotionTrainer:
                 for k, v in gt_dict.items():
                     gt[k] = v.to(self.device)
 
-                pred = self.model(input_pts)
+                pred = self.model(input_pts, gt)
                 if save_results:
                     self.postprocess.process(pred, input_pts, gt, id)
                 

@@ -173,34 +173,36 @@ class Shape2Motion(nn.Module):
                 'confidence': pred_confidence,
             }
         elif self.stage == Stage.stage2:
-            motion_feat_1 = self.motion_feat_1(motion_feat)
-            simmat_feat_1 = self.simmat_feat_1(simmat_feat)
+            motion_feat_1 = self.motion_feat_1(motion_feat).transpose(1, 2)
+            simmat_feat_1 = self.simmat_feat_1(simmat_feat).transpose(1, 2)
 
             part_proposal = gt['part_proposal']
             anchor_mask = gt['anchor_mask']
-
-            num_points = pred_anchor_pts.size(dim=0)
-            part_proposal = torch.tile(part_proposal, (1, 1, 512)).float()
+            
+            num_points = part_proposal.size(dim=1)
+            part_proposal = torch.unsqueeze(part_proposal, -1)
+            part_proposal = part_proposal.repeat(1, 1, 512).float()
             simmat_feat_mul = simmat_feat_1 * part_proposal
-            simmat_feat_max = torch.unsqueeze(torch.max(simmat_feat_mul, axis=1), 1)
-            simmat_feat_expand = torch.tile(simmat_feat_max, (1,num_points,1))
+            simmat_feat_max, _ = torch.max(simmat_feat_mul, axis=1)
+            simmat_feat_max = torch.unsqueeze(simmat_feat_max, 1)
+            simmat_feat_expand = simmat_feat_max.repeat(1, num_points, 1)
             all_feat = torch.cat((motion_feat_1, simmat_feat_expand), axis=2)
 
-            anchor_mask = torch.tile(anchor_mask, (1,1,1024)).float()
+            anchor_mask = torch.unsqueeze(anchor_mask, -1)
+            anchor_mask = anchor_mask.repeat(1,1,1024).float()
             anchor_feat = all_feat * anchor_mask
 
-            anchor_feat_1 = self.feat1(anchor_feat)
+            anchor_feat_1 = self.feat1(anchor_feat.transpose(1, 2))
             anchor_feat_2 = self.feat2(anchor_feat_1)
             anchor_feat_3 = self.feat3(anchor_feat_2)
 
             pred_motion_scores = self.motion_score_layer(anchor_feat_3)
-            pred_motion_scores = torch.sigmoid(pred_motion_scores).transpose(1, 2)
+            pred_motion_scores = torch.sigmoid(pred_motion_scores.transpose(1, 2))
 
             pred = {
                 'motion_scores': pred_motion_scores,
                 'anchor_feat_3': anchor_feat_3,
             }
-            pdb.set_trace()
 
         return pred
 
@@ -282,7 +284,7 @@ class Shape2Motion(nn.Module):
         elif self.stage == Stage.stage2:
             anchor_mask = gt['anchor_mask']
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
-            pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
+            pred_motion_scores = pred['motion_scores']
 
             epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
             epsilon = epsilon.to(self.device)

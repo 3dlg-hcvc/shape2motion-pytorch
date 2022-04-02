@@ -32,8 +32,9 @@ class Shape2MotionDataset(Dataset):
                         'input_pts': object_data['input_pts'][:],
                         'part_proposal': pred_part_proposals[proposal_idx],
                         'anchor_mask': object_data['pred_anchor_mask'][:],
-                        'motion_scores': object_data['motion_scores'][:]
+                        'motion_scores': object_data['motion_scores'][:][proposal_idx]
                     }
+                    
                     instances.append({'id': instance_name + f'_{proposal_idx}', 'data': instance_data})
 
         return instances
@@ -46,13 +47,12 @@ class Shape2MotionDataset(Dataset):
         id = instance['id']
         instance_data = instance['data']
 
-        if self.stage == Stage.stage1:
-            input_pts = torch.tensor(instance_data['input_pts'], dtype=torch.float32)
-            gt_dict = {}
-            for k, v in instance_data.items():
-                if k == 'input_pts':
-                    continue
-                else:
-                    gt_dict[k] = torch.tensor(v, dtype=torch.float32)
+        input_pts = torch.tensor(instance_data['input_pts'], dtype=torch.float32)
+        gt_dict = {}
+        for k, v in instance_data.items():
+            if k == 'input_pts':
+                continue
+            else:
+                gt_dict[k] = torch.tensor(v, dtype=torch.float32)
 
-            return input_pts, gt_dict, id
+        return input_pts, gt_dict, id

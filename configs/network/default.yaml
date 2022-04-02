@@ -46,7 +46,7 @@ stage1:
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: true
+    with_best: false
 
   postprocess: ${postprocess.stage1}
 
@@ -71,6 +71,9 @@ stage2:
     max_epochs: 100
     lr: 0.001
     batch_size: 8
+
+    loss_weight:
+      motion_scores_loss: 1.0
 
   test:
     split: "val"
