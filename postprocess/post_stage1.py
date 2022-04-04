@@ -79,8 +79,8 @@ class PostStage1Impl:
             elif joint_type == JointType.TRANS.value:
                 move_pts = self.trans3d(pts, joint_directions[i])
             elif joint_type == JointType.BOTH.value:
-                move_pts = self.trans3d(pts, joint_directions[i])
-                move_pts = self.rot3d(move_pts, joint_origins[i], joint_directions[i])
+                move_pts = self.rot3d(pts, joint_origins[i], joint_directions[i])
+                move_pts = self.trans3d(move_pts, joint_directions[i])
             else:
                 raise NotImplementedError(f'No implementation for the joint type value {joint_type}')
             move_pts_list.append(move_pts)
@@ -93,8 +93,10 @@ class PostStage1Impl:
         return rot_pts
 
     def trans3d(self, pts, joint_direction):
+        diag_length = LA.norm(np.amax(pts) - np.amin(pts))
+        move_trans = self.move_trans_param * diag_length
         joint_direction = joint_direction / LA.norm(joint_direction)
-        shift_vec = joint_direction * self.move_trans_param
+        shift_vec = joint_direction * move_trans
         trans_pts = pts + shift_vec
         return trans_pts
 

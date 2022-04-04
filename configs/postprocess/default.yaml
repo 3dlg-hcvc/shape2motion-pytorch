@@ -13,7 +13,7 @@ stage1:
   top_k_score_threshold: 15
   top_score_threshold: 0.4
   move_angle_param: "np.pi"
-  move_trans_param: 1.0
+  move_trans_param: 0.15
 
 stage2:
   debug: "${postprocess.debug}"
