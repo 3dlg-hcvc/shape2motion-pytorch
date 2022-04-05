@@ -168,7 +168,7 @@ class PostStage1Impl:
             tmp_score_max = gt_score_max[tmp_index]
             # tmp_score_idx = gt_score_idx[tmp_index]
             # sort in descending order
-            top_score_idx = tmp_score_max[::-1].argsort()[:self.top_k_score_threshold]
+            top_score_idx = tmp_score_max.argsort()[::-1][:self.top_k_score_threshold]
             top_score_max = tmp_score_max[top_score_idx]
             high_score_idx = top_score_idx[top_score_max > self.top_score_threshold]
             if high_score_idx.size == 0:

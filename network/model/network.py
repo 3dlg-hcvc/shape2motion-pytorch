@@ -237,10 +237,9 @@ class Shape2Motion(nn.Module):
 
             pred_motion_scores = self.motion_score_layer(anchor_feat_3)
             pred_motion_scores = torch.sigmoid(pred_motion_scores.transpose(1, 2))
-
+            pred_motion_scores = torch.squeeze(pred_motion_scores, -1)
             pred = {
-                'motion_scores': pred_motion_scores,
-                'anchor_feat_3': anchor_feat_3,
+                'motion_scores': pred_motion_scores
             }
         elif self.stage == Stage.stage3:
             all_feat = torch.cat((dynamic_features, static_features), axis=1)
@@ -334,9 +333,9 @@ class Shape2Motion(nn.Module):
                 'joint_type_accuracy': joint_type_accuracy,
             }
         elif self.stage == Stage.stage2:
-            anchor_mask = gt['anchor_mask']
+            anchor_mask = gt['anchor_mask'].float()
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
-            pred_motion_scores = pred['motion_scores']
+            pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
             epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
             epsilon = epsilon.to(self.device)

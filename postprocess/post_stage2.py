@@ -59,14 +59,17 @@ class PostStage2Impl:
         gt_part_proposal = data.gt_part_proposal
         pred_motions = data.pred_motions
         gt_motion = data.gt_motion
-        pred_motion_scores = data.pred_motion_scores.flatten()
+        pred_motion_scores = data.pred_motion_scores
         gt_motion_scores = data.gt_motion_scores
 
-        good_motion_idx = pred_motion_scores[::-1].argsort()[:self.top_k_score_threshold]
+        good_motion_idx = gt_motion_scores.argsort()[::-1][:self.top_k_score_threshold]
         # select one good predicted motion
         good_motion_idx = np.random.choice(good_motion_idx.shape[0], 1, replace=False)
         good_motion = pred_motions[good_motion_idx, :].flatten()
-        motion_regression = gt_motion - good_motion
+        motion_regression = gt_motion[:6] - good_motion[:6]
+
+        if good_motion[-1] == 0:
+            return
 
         assert len(self.move_angle_params) == len(self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
         moved_pcds = np.zeros((3, num_points, 6))

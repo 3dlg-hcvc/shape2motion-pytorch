@@ -63,7 +63,6 @@ def compute_proposal_loss(pred_part_proposal, gt_part_proposal, epsilon):
     iou = torch.mean(torch.sum(torch.logical_and(proposal, gt_proposal).float(), axis=-1) / (torch.sum(torch.logical_or(proposal, gt_proposal).float(), axis=-1) + epsilon))
     return proposal_loss, proposal_accuracy, iou
 
-
 def compute_regression_loss(pred_regression, gt_regression):
     regression_loss = torch.mean(torch.sum(F.smooth_l1_loss(pred_regression, gt_regression, reduction='none'), axis=2))
     return regression_loss
