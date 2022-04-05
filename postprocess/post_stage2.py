@@ -155,16 +155,16 @@ class PostStage2:
                 viz = Visualizer(tmp_data['input_pts'][:, :3])
                 viz.view_stage2_output(gt_cfg, pred_cfg)
         
-        # pool = Pool(processes=self.num_workers)
+        pool = Pool(processes=self.num_workers)
         proc_impl = PostStage2Impl(self.cfg)
-        # jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage2_data)]
-        # pool.close()
-        # pool.join()
-        # batch_output = [job.get() for job in jobs]
+        jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage2_data)]
+        pool.close()
+        pool.join()
+        batch_output = [job.get() for job in jobs]
 
-        batch_output = []
-        for i, data in enumerate(stage2_data):
-            batch_output.append(proc_impl(i, data))
+        # batch_output = []
+        # for i, data in enumerate(stage2_data):
+        #     batch_output.append(proc_impl(i, data))
 
         for output_data in batch_output:
             if output_data is None:
