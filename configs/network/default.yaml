@@ -45,7 +45,8 @@ stage1:
     split: "val"
     input_data: path
     inference_model: path
-    batch_size: 8
+    batch_size: 12
+    with_best: false
 
   postprocess: ${postprocess.stage1}
 
@@ -69,13 +70,20 @@ stage2:
 
     max_epochs: 100
     lr: 0.001
-    batch_size: 8
+    batch_size: 32
+
+    loss_weight:
+      motion_scores_loss: 1.0
 
   test:
     split: "val"
     input_data: path
     inference_model: path
-    batch_size: 8
+    batch_size: 32
+    with_best: false
+  
+  model:
+    pretrained_module: ["backbone", "motion_feat", "simmat_feat"]
   
   postprocess: ${postprocess.stage2}
 
@@ -101,10 +109,15 @@ stage3:
     lr: 0.001
     batch_size: 8
 
+    loss_weight:
+      proposal_loss: 1.0
+      regression_loss: 1.0
+
   test:
     split: "val"
     input_data: path
     inference_model: path
     batch_size: 8
+    with_best: true
 
   postprocess: ${postprocess.stage3}

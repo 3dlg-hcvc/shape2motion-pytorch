@@ -48,6 +48,26 @@ def compute_confidence_loss(pred_confidence, pred_simmat, gt_simmat, threshold, 
     confidence_loss = F.mse_loss(pts_iou, torch.squeeze(pred_confidence, 2))
     return confidence_loss
 
+def compute_motion_scores_loss(pred_motion_scores, gt_motion_scores, mask, epsilon):
+    motion_scores_loss = torch.mean(torch.sum(torch.mean(F.smooth_l1_loss(pred_motion_scores, gt_motion_scores, reduction='none'), axis=2) * mask, axis=1) / (torch.sum(mask, axis=1) + epsilon))
+    return motion_scores_loss
+
+def compute_proposal_loss(pred_part_proposal, gt_part_proposal, epsilon):
+    num_points = pred_part_proposal.size(dim=1)
+    proposal_loss = F.cross_entropy(pred_part_proposal, gt_part_proposal.long(), reduction='mean')
+    proposal = torch.argmax(pred_part_proposal, axis=2).int()
+    proposal_accuracy = torch.mean(torch.sum(torch.eq(proposal, gt_part_proposal.int()).float(), axis = 1) / num_points)
+
+    proposal = torch.gt(proposal.float(), 0.5)
+    gt_proposal = torch.gt(gt_part_proposal.float(), 0.5)
+    iou = torch.mean(torch.sum(torch.logical_and(proposal, gt_proposal).float(), axis=-1) / (torch.sum(torch.logical_or(proposal, gt_proposal).float(), axis=-1) + epsilon))
+    return proposal_loss, proposal_accuracy, iou
+
+def compute_regression_loss(pred_regression, gt_regression):
+    regression_loss = torch.mean(torch.sum(F.smooth_l1_loss(pred_regression, gt_regression, reduction='none'), axis=2))
+    return regression_loss
+
+
 
 
 

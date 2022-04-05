@@ -5,7 +5,7 @@ num_workers: 16
 
 defaults:
   - dataset: shape2motion
-  - preprocess: single_object
+  - preprocess: single_object # single_object
   - network: default
   - postprocess: default
   - paths: default

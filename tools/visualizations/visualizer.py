@@ -74,7 +74,7 @@ class Visualizer(Renderer):
         viewer.show()
 
 
-    def view_stage2_input(self, gt_cfg, pred_cfg, proposal__downsample=2, joint_downsample=1):
+    def view_stage2_input(self, gt_cfg, pred_cfg, proposal__downsample=2, joint_downsample=2):
         # gt_cfg.part_proposals
         # gt_cfg.motions
         
@@ -112,12 +112,52 @@ class Visualizer(Renderer):
 
             pred_joint_scores = pred_cfg.scores[i][anchor_mask]
             pred_joint_colors = cm(pred_joint_scores)
-            rot_mask = pred_joint_type == JointType.ROT.value
-            trans_mask = pred_joint_type == JointType.TRANS.value
-            both_mask = pred_joint_type == JointType.BOTH.value
 
             pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
             pred_viewer.show(window_name=f'pred_{i}')
 
+    def view_stage2_output(self, gt_cfg, pred_cfg, joint_downsample=2):
+        # gt
+        # part_proposal
+        # motions
+        # scores
+        # anchor_mask
+
+        # pred
+        # part_proposal
+        # motions
+        # scores
+        # anchor_mask
+
+        gt_viewer = Renderer(vertices=self.vertices, mask=gt_cfg.part_proposal.astype(int))
+        anchor_mask = gt_cfg.anchor_mask > 0
+        gt_motions = gt_cfg.motions[anchor_mask, :]
+        gt_joint_origins = gt_motions[:, :3]
+        gt_joint_directions = gt_motions[:, 3:6]
+        gt_joint_directions = gt_joint_directions / LA.norm(gt_joint_directions, axis=1).reshape(-1,1)
+        gt_joint_type = gt_motions[:, 6]
+
+        cm = plt.get_cmap('jet')
+        gt_joint_scores = gt_cfg.scores[anchor_mask]
+        gt_joint_colors = cm(gt_joint_scores)
+
+        gt_viewer.add_trimesh_arrows(gt_joint_origins[::joint_downsample], gt_joint_directions[::joint_downsample], colors=gt_joint_colors[::joint_downsample], radius=0.005, length=0.2)
+        gt_viewer.show(window_name=f'gt')
+
+
+        pred_viewer = Renderer(vertices=self.vertices, mask=pred_cfg.part_proposal.astype(int))
+        anchor_mask = pred_cfg.anchor_mask > 0
+        pred_motions = pred_cfg.motions[anchor_mask, :]
+        pred_joint_origins = pred_motions[:, :3]
+        pred_joint_directions = pred_motions[:, 3:6]
+        pred_joint_directions = pred_joint_directions / LA.norm(pred_joint_directions, axis=1).reshape(-1,1)
+        pred_joint_type = pred_motions[:, 6]
+
+        cm = plt.get_cmap('jet')
+        pred_joint_scores = pred_cfg.scores[anchor_mask]
+        pred_joint_colors = cm(pred_joint_scores)
+
+        pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
+        pred_viewer.show(window_name=f'pred')
 
             
