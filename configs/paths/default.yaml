@@ -50,3 +50,16 @@ network:
       folder_name: "inference"
       output_dir: "${paths.network.stage2.path}/${paths.network.stage2.inference.folder_name}"
       inference_result: "inference_result.h5"
+
+  stage3:
+    folder_name: "stage3"
+    path: "${paths.network.output_dir}/${paths.network.stage3.folder_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    train:
+      folder_name: "train"
+      output_dir: "${paths.network.stage3.path}/${paths.network.stage3.train.folder_name}"
+      model_filename: "model_%09d.pth"
+      best_model_filename: "best_model.pth"
+    inference:
+      folder_name: "inference"
+      output_dir: "${paths.network.stage3.path}/${paths.network.stage3.inference.folder_name}"
+      inference_result: "inference_result.h5"

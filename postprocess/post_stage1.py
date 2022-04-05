@@ -93,7 +93,7 @@ class PostStage1Impl:
         return rot_pts
 
     def trans3d(self, pts, joint_direction):
-        diag_length = LA.norm(np.amax(pts) - np.amin(pts))
+        diag_length = LA.norm(np.amax(pts, axis=0) - np.amin(pts, axis=0))
         move_trans = self.move_trans_param * diag_length
         joint_direction = joint_direction / LA.norm(joint_direction)
         shift_vec = joint_direction * move_trans

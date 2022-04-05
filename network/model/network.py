@@ -9,7 +9,7 @@ from tools.utils.constant import Stage
 import pdb
 
 class Shape2Motion(nn.Module):
-    def __init__(self, stage, device):
+    def __init__(self, stage, device, num_points):
         super().__init__()
         self.stage = Stage[stage] if isinstance(stage, str) else stage
         self.device = device
@@ -125,8 +125,35 @@ class Shape2Motion(nn.Module):
 
             self.motion_score_layer = nn.Conv1d(256, 1, kernel_size=1, padding=0)
 
-        elif self.stage == Stage.Stage3:
-            pass
+        elif self.stage == Stage.stage3:
+            self.dynamic_backbone = PointNet2()
+
+            # static branch
+            self.static_feat = nn.Sequential(
+                nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
+                nn.ReLU(True)
+            )
+            # dynamic branch
+            self.dynamic_feat = nn.Sequential(
+                nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
+                nn.ReLU(True)
+            )
+
+            self.proposal_feat = nn.Sequential(
+                nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
+                nn.ReLU(True)
+            )
+            self.proposal_layer = nn.Conv1d(128, 2, kernel_size=1, padding=0)
+
+            self.regression_feat = nn.Sequential(
+                nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
+                nn.ReLU(True)
+            )
+            self.regression_layer = nn.Conv1d(128, 6, kernel_size=num_points, padding=0)
         else:
             raise NotImplementedError(f'No implementation for the stage {self.stage.value}')
 
@@ -134,8 +161,20 @@ class Shape2Motion(nn.Module):
         batch_size = input.size(dim=0)
 
         features = self.backbone(input)
-        motion_feat = self.motion_feat(features)
-        simmat_feat = self.simmat_feat(features)
+        if self.stage == Stage.stage3:
+            moved_pcds = gt['moved_pcds']
+            dynamic_features_1 = self.dynamic_backbone(moved_pcds[:, 0, :, :])
+            dynamic_features_1 = torch.unsqueeze(dynamic_features_1, 1)
+            dynamic_features_2 = self.dynamic_backbone(moved_pcds[:, 1, :, :])
+            dynamic_features_2 = torch.unsqueeze(dynamic_features_2, 1)
+            dynamic_features_3 = self.dynamic_backbone(moved_pcds[:, 2, :, :])
+            dynamic_features_3 = torch.unsqueeze(dynamic_features_3, 1)
+            dynamic_features = torch.cat((dynamic_features_1, dynamic_features_2, dynamic_features_3), axis=1)
+            static_features = torch.unsqueeze(features, 1)
+
+        if self.stage == Stage.stage1 or self.stage == Stage.stage2:
+            motion_feat = self.motion_feat(features)
+            simmat_feat = self.simmat_feat(features)
 
         if self.stage == Stage.stage1:
             feat1 = self.feat1(motion_feat)
@@ -202,6 +241,19 @@ class Shape2Motion(nn.Module):
             pred = {
                 'motion_scores': pred_motion_scores,
                 'anchor_feat_3': anchor_feat_3,
+            }
+        elif self.stage == Stage.stage3:
+            all_feat = torch.cat((dynamic_features, static_features), axis=1)
+            all_feat, _ = torch.max(all_feat, axis=1)
+
+            proposal_feat = self.proposal_feat(all_feat)
+            pred_proposal = self.proposal_layer(proposal_feat)
+            regression_feat = self.regression_feat(all_feat)
+            pred_regression = self.regression_layer(regression_feat)
+
+            pred = {
+                'pred_proposal': pred_proposal,
+                'pred_regression': pred_regression,
             }
 
         return pred
@@ -298,5 +350,24 @@ class Shape2Motion(nn.Module):
             loss_dict = {
                 'motion_scores_loss': motion_scores_loss,
             }
+        elif self.stage == Stage.stage3:
+            epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
+            epsilon = epsilon.to(self.device)
+            proposal_loss, proposal_accuracy, iou = loss.compute_proposal_loss(
+                pred['pred_proposal'],
+                gt['part_proposal'],
+                epsilon
+            )
+            regression_loss = loss.compute_regression_loss(
+                pred['pred_regression'],
+                gt['motion_regression'],
+            )
 
+            loss_dict = {
+                'proposal_loss': proposal_loss,
+                'proposal_accuracy': proposal_accuracy,
+                'iou': iou,
+                'regression_loss': regression_loss
+            }
+        
         return loss_dict

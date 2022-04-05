@@ -33,7 +33,7 @@ class PostStage2Impl:
             move_pts = self.rot3d(move_pts, joint_origin, joint_direction, angle)
             move_pts = self.trans3d(pts, joint_direction, trans)
         else:
-            raise NotImplementedError(f'No implementation for the joint type value {joint_type}')
+            log.warn(f'No implementation for the joint type value {joint_type}')
         return move_pts
 
     def rot3d(self, pts, joint_origin, joint_direction, angle):
@@ -55,24 +55,24 @@ class PostStage2Impl:
         num_points = input_pts.shape[0]
         input_xyz = input_pts[:, :3]
 
-        pred_part_proposal = data.pred_part_proposal
+        pred_part_proposal = data.pred_part_proposal.astype(bool)
         gt_part_proposal = data.gt_part_proposal
         pred_motions = data.pred_motions
         gt_motion = data.gt_motion
-        pred_motion_scores = data.pred_motion_scores
+        pred_motion_scores = data.pred_motion_scores.flatten()
         gt_motion_scores = data.gt_motion_scores
 
         good_motion_idx = pred_motion_scores[::-1].argsort()[:self.top_k_score_threshold]
         # select one good predicted motion
         good_motion_idx = np.random.choice(good_motion_idx.shape[0], 1, replace=False)
-        good_motion = pred_motions[good_motion_idx, :]
+        good_motion = pred_motions[good_motion_idx, :].flatten()
         motion_regression = gt_motion - good_motion
 
         assert len(self.move_angle_params) == len(self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
         moved_pcds = np.zeros((3, num_points, 6))
         for i in range(len(self.move_angle_params)):
-            move_angle = eval(self.move_angle_params[i])
-            diag_length = LA.norm(np.amax(input_xyz) - np.amin(input_xyz))
+            move_angle = float(self.move_angle_params[i]) / 180.0 * np.pi
+            diag_length = LA.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
             move_trans = self.move_trans_params[i] * diag_length
             move_pts = self.move_pts_with_joint(input_xyz[pred_part_proposal, :], good_motion[:3], good_motion[3:6], good_motion[-1], move_angle, move_trans)
             tmp_pts = np.copy(input_pts)
@@ -133,13 +133,35 @@ class PostStage2:
             tmp_data['pred_motion_scores'] = pred_motion_scores[b]
             tmp_data['gt_motion_scores'] = gt_motion_scores[b]
             stage2_data.append(tmp_data)
+
+            if self.debug:
+                gt_cfg = {}
+                gt_cfg['part_proposal'] = tmp_data['gt_part_proposal']
+                gt_cfg['motions'] = tmp_data['pred_motions']
+                gt_cfg['scores'] = tmp_data['gt_motion_scores']
+                gt_cfg['anchor_mask'] = anchor_mask[b]
+                gt_cfg = SimpleNamespace(**gt_cfg)
+
+                pred_cfg = {}
+                pred_cfg['part_proposal'] = tmp_data['pred_part_proposal']
+                pred_cfg['motions'] = tmp_data['pred_motions']
+                pred_cfg['scores'] = tmp_data['pred_motion_scores']
+                pred_cfg['anchor_mask'] = anchor_mask[b]
+                pred_cfg = SimpleNamespace(**pred_cfg)
+
+                viz = Visualizer(tmp_data['input_pts'][:, :3])
+                viz.view_stage2_output(gt_cfg, pred_cfg)
         
-        pool = Pool(processes=self.num_workers)
+        # pool = Pool(processes=self.num_workers)
         proc_impl = PostStage2Impl(self.cfg)
-        jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage2_data)]
-        pool.close()
-        pool.join()
-        batch_output = [job.get() for job in jobs]
+        # jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage2_data)]
+        # pool.close()
+        # pool.join()
+        # batch_output = [job.get() for job in jobs]
+
+        batch_output = []
+        for i, data in enumerate(stage2_data):
+            batch_output.append(proc_impl(i, data))
 
         for output_data in batch_output:
             if output_data is None:

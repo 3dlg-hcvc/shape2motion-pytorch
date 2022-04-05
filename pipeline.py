@@ -57,6 +57,14 @@ def main(cfg: DictConfig):
             stage2_network.train()
         stage2_network.inference()
 
+    if cfg.network.stage3.run:
+        stage3_input_cfg = get_latest_input_cfg(cfg.paths.network.stage2)
+
+        stage3_network = Network(cfg.network.stage3, stage3_input_cfg)
+        if not cfg.network.stage3.eval_only:
+            stage3_network.train()
+        stage3_network.inference()
+
 
 if __name__ == '__main__':
     start = time()

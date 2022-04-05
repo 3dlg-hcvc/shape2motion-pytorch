@@ -18,3 +18,7 @@ stage1:
 stage2:
   debug: "${postprocess.debug}"
   num_workers: "${postprocess.num_workers}"
+
+  top_k_score_threshold: 10
+  move_angle_params: [30, 60, 90]
+  move_trans_params: [0.05, 0.1, 0.15]

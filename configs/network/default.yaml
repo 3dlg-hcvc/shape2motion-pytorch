@@ -109,6 +109,10 @@ stage3:
     lr: 0.001
     batch_size: 8
 
+    loss_weight:
+      proposal_loss: 1.0
+      regression_loss: 1.0
+
   test:
     split: "val"
     input_data: path

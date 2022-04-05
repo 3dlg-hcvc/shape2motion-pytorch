@@ -60,7 +60,7 @@ class Shape2MotionTrainer:
             self.postprocess = PostStage2(self.cfg.postprocess)
 
     def build_model(self):
-        model = Shape2Motion(self.stage, self.device)
+        model = Shape2Motion(self.stage, self.device, self.cfg.num_points)
         return model
 
     def init_data_loader(self, eval_only):
@@ -196,7 +196,7 @@ class Shape2MotionTrainer:
         }
 
         # test the model on the val set and write the results into tensorboard
-        self.model.eval()
+        # self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
