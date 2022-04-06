@@ -146,14 +146,22 @@ class Shape2Motion(nn.Module):
                 nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
-            self.proposal_layer = nn.Conv1d(128, 2, kernel_size=1, padding=0)
+            self.proposal_layer = nn.Sequential(
+                nn.Conv1d(128, 2, kernel_size=1, padding=0),
+                nn.BatchNorm1d(2),
+                nn.ReLU(True)
+            )
 
             self.regression_feat = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
-            self.regression_layer = nn.Conv1d(128, 6, kernel_size=num_points, padding=0)
+            self.regression_layer = nn.Sequential(
+                nn.Conv1d(128, 6, kernel_size=num_points, padding=0),
+                nn.BatchNorm1d(6),
+                # nn.ReLU(True)
+            )
         else:
             raise NotImplementedError(f'No implementation for the stage {self.stage.value}')
 
@@ -249,10 +257,11 @@ class Shape2Motion(nn.Module):
             pred_proposal = self.proposal_layer(proposal_feat)
             regression_feat = self.regression_feat(all_feat)
             pred_regression = self.regression_layer(regression_feat)
+            pred_regression = torch.squeeze(pred_regression, -1)
 
             pred = {
-                'pred_proposal': pred_proposal,
-                'pred_regression': pred_regression,
+                'part_proposal': pred_proposal,
+                'motion_regression': pred_regression,
             }
 
         return pred
@@ -352,21 +361,21 @@ class Shape2Motion(nn.Module):
         elif self.stage == Stage.stage3:
             epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
             epsilon = epsilon.to(self.device)
-            proposal_loss, proposal_accuracy, iou = loss.compute_proposal_loss(
-                pred['pred_proposal'],
+            part_proposal_loss, part_proposal_accuracy, iou = loss.compute_part_proposal_loss(
+                pred['part_proposal'],
                 gt['part_proposal'],
                 epsilon
             )
-            regression_loss = loss.compute_regression_loss(
-                pred['pred_regression'],
+            motion_regression_loss = loss.compute_motion_regression_loss(
+                pred['motion_regression'],
                 gt['motion_regression'],
             )
 
             loss_dict = {
-                'proposal_loss': proposal_loss,
-                'proposal_accuracy': proposal_accuracy,
+                'part_proposal_loss': part_proposal_loss,
+                'part_proposal_accuracy': part_proposal_accuracy,
                 'iou': iou,
-                'regression_loss': regression_loss
+                'motion_regression_loss': motion_regression_loss
             }
         
         return loss_dict

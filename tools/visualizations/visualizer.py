@@ -160,4 +160,33 @@ class Visualizer(Renderer):
         pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
         pred_viewer.show(window_name=f'pred')
 
+    def view_stage3_output(self, gt_cfg, pred_cfg):
+        # gt
+        # part_proposal
+
+        # pred
+        # part_proposal
+        moved_pcd_1 = gt_cfg.moved_pcds[0, :, :3]
+        moved_pcd_2 = gt_cfg.moved_pcds[1, :, :3]
+        moved_pcd_3 = gt_cfg.moved_pcds[2, :, :3]
+        good_motion = gt_cfg.good_motion
+        gt_viewer = Renderer(vertices=self.vertices, mask=gt_cfg.part_proposal.astype(int))
+        gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
+        gt_viewer.show(window_name=f'gt')
+
+        # gt_viewer.reset()
+        # gt_viewer.add_geometry(vertices=moved_pcd_2, mask=gt_cfg.part_proposal.astype(int))
+        # gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
+        # gt_viewer.show(window_name=f'gt2')
+
+        # gt_viewer.reset()
+        # gt_viewer.add_geometry(vertices=moved_pcd_3, mask=gt_cfg.part_proposal.astype(int))
+        # gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
+        # gt_viewer.show(window_name=f'gt3')
+
+        pred_viewer = Renderer(vertices=self.vertices, mask=pred_cfg.part_proposal.astype(int))
+        pred_viewer.show(window_name=f'pred')
+
+
+
             

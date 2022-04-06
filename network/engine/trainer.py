@@ -17,7 +17,7 @@ from network.utils import AvgRecorder
 from tools.utils import io
 from tools.utils.constant import Stage
 
-from postprocess import PostStage1, PostStage2
+from postprocess import PostStage1, PostStage2, PostStage3
 
 
 class Shape2MotionTrainer:
@@ -58,6 +58,8 @@ class Shape2MotionTrainer:
             self.postprocess = PostStage1(self.cfg.postprocess)
         elif self.stage == Stage.stage2:
             self.postprocess = PostStage2(self.cfg.postprocess)
+        elif self.stage == Stage.stage3:
+            self.postprocess = PostStage3(self.cfg.postprocess)
 
     def build_model(self):
         model = Shape2Motion(self.stage, self.device, self.cfg.num_points)
@@ -196,7 +198,7 @@ class Shape2MotionTrainer:
         }
 
         # test the model on the val set and write the results into tensorboard
-        self.model.eval()
+        # self.model.eval()
         data_loader = self.test_loader if data_set == 'test' else self.train_loader
         with torch.no_grad():
             start_time = time()
@@ -323,7 +325,7 @@ class Shape2MotionTrainer:
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
             else:
                 output_path = os.path.join(self.test_cfg.output_dir, f'{self.cfg.test.split}_' + self.test_cfg.inference_result)
-            self.postprocess.set_datapath(self.data_path[data_set], output_path)
+            self.postprocess.set_datapath(self.data_path[data_set], output_path, data_set)
             self.eval_epoch(epoch, save_results=True, data_set=data_set)
             self.postprocess.stop()
 

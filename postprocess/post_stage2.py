@@ -55,17 +55,21 @@ class PostStage2Impl:
         num_points = input_pts.shape[0]
         input_xyz = input_pts[:, :3]
 
+        data_set = data.data_set
+
         pred_part_proposal = data.pred_part_proposal.astype(bool)
         gt_part_proposal = data.gt_part_proposal
         pred_motions = data.pred_motions
         gt_motion = data.gt_motion
-        pred_motion_scores = data.pred_motion_scores
-        gt_motion_scores = data.gt_motion_scores
+        if data_set == 'train':
+            motion_scores = data.gt_motion_scores
+        else:
+            motion_scores = data.pred_motion_scores
         anchor_mask = data.anchor_mask
 
-        good_motion_idx = gt_motion_scores[anchor_mask].argsort()[::-1][:self.top_k_score_threshold]
+        good_motion_idx = motion_scores[anchor_mask].argsort()[::-1][:self.top_k_score_threshold]
         # select one good predicted motion
-        good_motion_idx = np.random.choice(good_motion_idx.shape[0], 1, replace=False)[0]
+        good_motion_idx = good_motion_idx[np.random.choice(good_motion_idx.shape[0], 1, replace=False)[0]]
         good_motion = pred_motions[anchor_mask, :][good_motion_idx, :]
         motion_regression = gt_motion[:6] - good_motion[:6]
 
@@ -90,6 +94,8 @@ class PostStage2Impl:
         output_data['gt_part_proposal'] = gt_part_proposal
         output_data['motion_regression'] = motion_regression
         output_data['moved_pcds'] = moved_pcds
+        output_data['pred_part_proposal'] = pred_part_proposal
+        output_data['good_motion'] = good_motion
         return output_data
 
 
@@ -100,12 +106,14 @@ class PostStage2:
         self.num_workers = self.cfg.num_workers
 
         self.output_h5 = None
+        self.data_set = 'train'
 
-    def set_datapath(self, data_path, output_path):
+    def set_datapath(self, data_path, output_path, data_set):
         assert io.is_non_zero_file(data_path), OSError(f'Cannot find file {data_path}')
         self.gt_h5 = h5py.File(data_path, 'r')
         io.ensure_dir_exists(os.path.dirname(output_path))
         self.output_h5 = h5py.File(output_path, 'w')
+        self.data_set = data_set
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()
@@ -138,6 +146,7 @@ class PostStage2:
             tmp_data['pred_motion_scores'] = pred_motion_scores[b]
             tmp_data['gt_motion_scores'] = gt_motion_scores[b]
             tmp_data['anchor_mask'] = anchor_mask[b].astype(bool)
+            tmp_data['data_set'] = self.data_set
             stage2_data.append(tmp_data)
 
             if self.debug:
@@ -177,12 +186,16 @@ class PostStage2:
             part_proposal = output_data['gt_part_proposal']
             motion_regression = output_data['motion_regression']
             moved_pcds = output_data['moved_pcds']
+            pred_part_proposal = output_data['pred_part_proposal']
+            good_motion = output_data['good_motion']
             
             h5instance = self.output_h5.require_group(instance_name)
             h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
             h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal, compression='gzip')
             h5instance.create_dataset('motion_regression', shape=motion_regression.shape, data=motion_regression, compression='gzip')
             h5instance.create_dataset('moved_pcds', shape=moved_pcds.shape, data=moved_pcds, compression='gzip')
+            h5instance.create_dataset('pred_part_proposal', shape=pred_part_proposal.shape, data=pred_part_proposal, compression='gzip')
+            h5instance.create_dataset('good_motion', shape=good_motion.shape, data=good_motion, compression='gzip')
 
     def stop(self):
         self.output_h5.close()

@@ -230,12 +230,14 @@ class PostStage1:
         self.gt_h5 = None
         self.df = pd.DataFrame()
         self.output_h5 = None
+        self.data_set = 'train'
 
-    def set_datapath(self, data_path, output_path):
+    def set_datapath(self, data_path, output_path, data_set):
         assert io.is_non_zero_file(data_path), OSError(f'Cannot find file {data_path}')
         self.gt_h5 = h5py.File(data_path, 'r')
         io.ensure_dir_exists(os.path.dirname(output_path))
         self.output_h5 = h5py.File(output_path, 'w')
+        self.data_set = data_set
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()

@@ -45,7 +45,7 @@ stage1:
     split: "val"
     input_data: path
     inference_model: path
-    batch_size: 12
+    batch_size: 8
     with_best: false
 
   postprocess: ${postprocess.stage1}
@@ -105,19 +105,19 @@ stage3:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 200
     lr: 0.001
-    batch_size: 8
+    batch_size: 12
 
     loss_weight:
-      proposal_loss: 1.0
-      regression_loss: 1.0
+      part_proposal_loss: 1.0
+      motion_regression_loss: 1.0
 
   test:
     split: "val"
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: true
+    with_best: false
 
   postprocess: ${postprocess.stage3}
