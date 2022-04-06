@@ -30,8 +30,8 @@ class PostStage2Impl:
         elif joint_type == JointType.TRANS.value:
             move_pts = self.trans3d(pts, joint_direction, trans)
         elif joint_type == JointType.BOTH.value:
-            move_pts = self.rot3d(move_pts, joint_origin, joint_direction, angle)
-            move_pts = self.trans3d(pts, joint_direction, trans)
+            move_pts = self.rot3d(pts, joint_origin, joint_direction, angle)
+            move_pts = self.trans3d(move_pts, joint_direction, trans)
         else:
             log.warn(f'No implementation for the joint type value {joint_type}')
         return move_pts
