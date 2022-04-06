@@ -61,14 +61,16 @@ class PostStage2Impl:
         gt_motion = data.gt_motion
         pred_motion_scores = data.pred_motion_scores
         gt_motion_scores = data.gt_motion_scores
+        anchor_mask = data.anchor_mask
 
-        good_motion_idx = gt_motion_scores.argsort()[::-1][:self.top_k_score_threshold]
+        good_motion_idx = gt_motion_scores[anchor_mask].argsort()[::-1][:self.top_k_score_threshold]
         # select one good predicted motion
-        good_motion_idx = np.random.choice(good_motion_idx.shape[0], 1, replace=False)
-        good_motion = pred_motions[good_motion_idx, :].flatten()
+        good_motion_idx = np.random.choice(good_motion_idx.shape[0], 1, replace=False)[0]
+        good_motion = pred_motions[anchor_mask, :][good_motion_idx, :]
         motion_regression = gt_motion[:6] - good_motion[:6]
 
         if good_motion[-1] == 0:
+            log.warn(f'{instance_name} has bad motion type')
             return
 
         assert len(self.move_angle_params) == len(self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
@@ -135,6 +137,7 @@ class PostStage2:
 
             tmp_data['pred_motion_scores'] = pred_motion_scores[b]
             tmp_data['gt_motion_scores'] = gt_motion_scores[b]
+            tmp_data['anchor_mask'] = anchor_mask[b].astype(bool)
             stage2_data.append(tmp_data)
 
             if self.debug:

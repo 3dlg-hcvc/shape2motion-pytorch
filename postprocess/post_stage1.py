@@ -117,7 +117,6 @@ class PostStage1Impl:
         gt_proposals = data.gt_proposals
         gt_joints = data.gt_joints
 
-
         # process predicted joint types
         pred_joint_type = pred_joint_type[1:, :]
         # rotaiton: 0, translation: 1
