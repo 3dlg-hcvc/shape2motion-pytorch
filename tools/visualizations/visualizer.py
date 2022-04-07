@@ -191,6 +191,53 @@ class Visualizer(Renderer):
         pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
         pred_viewer.show(window_name=f'pred')
 
+    def view_evaluation_result(self, gt_cfg, pred_cfg):
+        # part_proposal
+        # joints
+
+        part_proposal = gt_cfg.part_proposal
+        joints = gt_cfg.joints
+        import pdb
+        pdb.set_trace()
+        gt_viewer = Renderer(vertices=self.vertices, mask=part_proposal.astype(int))
+        joint_origins = joints[:, :3]
+        joint_directions = joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/gt.gif', as_gif=True)
+
+
+        part_proposal = pred_cfg.part_proposal
+        joints = pred_cfg.joints
+        pdb.set_trace()
+        pred_viewer = Renderer(vertices=self.vertices, mask=part_proposal.astype(int))
+        joint_origins = joints[:, :3]
+        joint_directions = joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/pred.gif', as_gif=True)
 
 
             

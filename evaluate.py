@@ -52,16 +52,22 @@ class Evaluation:
                 'md': [],
                 'oe': [],
                 'ta': [],
-                'matches': {}
+                'matches': {},
             }
             gt_object = gt_h5[object_name]
-            gt_proposals = gt_object['gt_proposals'][:][1:, :]
+            gt_proposals = gt_object['gt_proposals'][:][1:, :].astype(bool)
             gt_joints = gt_object['gt_joints'][:]
+
+            best_match['gt_part_num'] = gt_proposals.shape[0]
+            best_match['gt_joint_num'] = gt_joints.shape[0]
 
             pred_object = pred_h5[object_name]
             pred_part_proposals = pred_object['pred_part_proposal'][:]
             pred_joints = pred_object['pred_joints'][:]
             pred_scores = pred_object['pred_scores'][:]
+            best_match['pred_part_num'] = np.unique(pred_part_proposals).shape[0] - 1
+            best_match['pred_joint_num'] = pred_joints.shape[0]
+            
             high_scores = np.argsort(pred_scores)[::-1]
             for idx in high_scores:
                 tmp_pred_part_proposal = pred_part_proposals == (idx+1)
@@ -92,9 +98,51 @@ class Evaluation:
                     best_match['md'].append(md)
                     best_match['oe'].append(oe)
                     best_match['ta'].append(ta)
+            if self.cfg.debug:
+                tmp_pred_part_proposals = np.zeros_like(pred_part_proposals)
+                for pred_idx, gt_idx in best_match['matches'].items():
+                    tmp_pred_part_proposals[pred_part_proposals == (pred_idx+1)] = (gt_idx+1)
+                tmp_gt_part_proposals = np.zeros_like(pred_part_proposals)
+                for i, gt_proposal in enumerate(gt_proposals):
+                    tmp_gt_part_proposals[gt_proposal] = i+1
+                input_xyz = gt_object['input_pts'][:][:, :3]
+
+                pdb.set_trace()
+
+                gt_cfg = {}
+                gt_cfg['part_proposal'] = tmp_gt_part_proposals
+                gt_cfg['joints'] = gt_joints
+                gt_cfg = SimpleNamespace(**gt_cfg)
+
+                pred_cfg = {}
+                pred_cfg['part_proposal'] = tmp_pred_part_proposals
+                pred_cfg['joints'] = pred_joints
+                pred_cfg = SimpleNamespace(**pred_cfg)
+
+                viz = Visualizer(input_xyz)
+                viz.view_evaluation_result(gt_cfg, pred_cfg)
+
 
             best_matches.append(best_match)
-            pdb.set_trace()
+
+        eval_results = {
+            'iou': [],
+            'md': [],
+            'oe': [],
+            'ta': [],
+            'part_recall': [],
+            'joint_recall': [],
+        }
+        for best_match in best_matches:
+            eval_results['iou'] += best_match['iou']
+            eval_results['md'] += best_match['md']
+            eval_results['oe'] += best_match['oe']
+            eval_results['ta'] += best_match['ta']
+            eval_results['part_recall'].append(best_match['pred_part_num'] / best_match['gt_part_num'])
+            eval_results['joint_recall'].append(best_match['pred_joint_num'] / best_match['gt_joint_num'])
+        for key, val in eval_results.items():
+            log.info(f'mean {key}: {np.mean(val)}')
+            
     def compute_dist(self, pred_origin, gt_joint):
         q1 = gt_joint[:3]
         q2 = gt_joint[:3] + gt_joint[3:6]
