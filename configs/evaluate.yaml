@@ -1,0 +1,16 @@
+version: "v1.0"
+
+debug: false
+num_workers: 16
+
+defaults:
+  - paths: default
+  - _self_ # https://hydra.cc/docs/upgrades/1.0_to_1.1/default_composition_order
+
+test_split: "val"
+iou_threshold: 0.6
+
+# hydra configuration log output dir
+hydra:
+  run:
+    dir: "${paths.result_dir}/logs/${now:%Y-%m-%d}/${now:%H-%M-%S}"

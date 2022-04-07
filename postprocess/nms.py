@@ -18,6 +18,8 @@ class NMS:
         self.stage3 = cfg.stage3
 
     def process(self, output, data_set):
+        output_h5 = h5py.File(output, 'w')
+
         if data_set == 'train':
             assert io.is_non_zero_file(self.stage1.train), OSError(f'Cannot find file {self.stage1.train}')
             stage1_output = h5py.File(self.stage1.train, 'r')
@@ -80,8 +82,12 @@ class NMS:
 
                 pred_part_proposal_all = np.zeros(input_xyz.shape[0])
                 pred_joints_all = None
+                pred_scores_all = None
                 for i, pick_idx in enumerate(part_pick):
                     instance_name = instance_names[pick_idx]
+
+                    stage2_instance = stage2_output[instance_name]
+                    pred_motion_scores = stage2_instance['pred_motion_scores'][:]
 
                     stage3_instance = stage3_output[instance_name]
                     pred_part_proposal = stage3_instance['part_proposal'][:].astype(bool)
@@ -89,15 +95,23 @@ class NMS:
 
                     pred_joints_idx = selected_joints[i]
                     pred_joints = pred_motions[pred_anchor_mask, :][pred_joints_idx, :]
+                    pred_scores = pred_motion_scores[pred_anchor_mask][pred_joints_idx]
 
                     if pred_joints_all is None:
                         pred_joints_all = pred_joints
+                        pred_scores_all = pred_scores
                     else:
                         pred_joints_all = np.concatenate((pred_joints_all, pred_joints), axis=0)
+                        pred_scores_all = np.concatenate((pred_scores_all, pred_scores), axis=0)
                 
+                h5instance = output_h5.require_group(object_name)
+                h5instance.create_dataset('pred_part_proposal', shape=pred_part_proposal_all.shape, data=pred_part_proposal_all, compression='gzip')
+                h5instance.create_dataset('pred_joints', shape=pred_joints_all.shape, data=pred_joints_all, compression='gzip')
+                h5instance.create_dataset('pred_scores', shape=pred_scores_all.shape, data=pred_scores_all, compression='gzip')
                 if self.cfg.debug:
                     viz = Visualizer(input_xyz, mask=pred_part_proposal_all.astype(int))
                     viz.view_nms_output(pred_joints_all)
+        output_h5.close()
             
     def nms(self, boxes):
         x1 = boxes[:,0]

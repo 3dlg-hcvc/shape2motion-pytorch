@@ -75,6 +75,7 @@ def main(cfg: DictConfig):
             nms_cfg.stage1 = stage1_output_cfg
             nms_cfg.stage2 = stage2_output_cfg
             nms_cfg.stage3 = stage3_output_cfg
+        io.ensure_dir_exists(cfg.paths.postprocess.path)
         nms = NMS(nms_cfg)
         data_sets = ['train', cfg.network.test_split]
         for data_set in data_sets:
