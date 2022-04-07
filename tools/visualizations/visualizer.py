@@ -166,25 +166,29 @@ class Visualizer(Renderer):
 
         # pred
         # part_proposal
-        moved_pcd_1 = gt_cfg.moved_pcds[0, :, :3]
-        moved_pcd_2 = gt_cfg.moved_pcds[1, :, :3]
-        moved_pcd_3 = gt_cfg.moved_pcds[2, :, :3]
-        good_motion = gt_cfg.good_motion
         gt_viewer = Renderer(vertices=self.vertices, mask=gt_cfg.part_proposal.astype(int))
-        gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
         gt_viewer.show(window_name=f'gt')
 
-        # gt_viewer.reset()
-        # gt_viewer.add_geometry(vertices=moved_pcd_2, mask=gt_cfg.part_proposal.astype(int))
-        # gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
-        # gt_viewer.show(window_name=f'gt2')
-
-        # gt_viewer.reset()
-        # gt_viewer.add_geometry(vertices=moved_pcd_3, mask=gt_cfg.part_proposal.astype(int))
-        # gt_viewer.add_trimesh_arrows([good_motion[:3]], [good_motion[3:6]])
-        # gt_viewer.show(window_name=f'gt3')
-
         pred_viewer = Renderer(vertices=self.vertices, mask=pred_cfg.part_proposal.astype(int))
+        pred_viewer.show(window_name=f'pred')
+
+    def view_nms_output(self, joints):
+        pred_viewer = Renderer(vertices=self.vertices, mask=self.mask)
+        joint_origins = joints[:, :3]
+        joint_directions = joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
         pred_viewer.show(window_name=f'pred')
 
 

@@ -80,9 +80,6 @@ class Mat2Hdf5Impl:
         data_info.to_csv(os.path.splitext(output_filepath)[0] + '.csv')
         return output_filepath
 
-
-
-
 class Mat2Hdf5:
     def __init__(self, cfg):
         cfg = SimpleNamespace(**cfg)

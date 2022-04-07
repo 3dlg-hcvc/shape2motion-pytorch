@@ -63,3 +63,10 @@ network:
       folder_name: "inference"
       output_dir: "${paths.network.stage3.path}/${paths.network.stage3.inference.folder_name}"
       inference_result: "inference_result.h5"
+
+postprocess:
+    folder_name: "postprocess"
+    output_dir: "${paths.result_dir}/${paths.postprocess.folder_name}"
+    path: "${paths.postprocess.output_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    output:
+      nms_result: "nms_result.h5"

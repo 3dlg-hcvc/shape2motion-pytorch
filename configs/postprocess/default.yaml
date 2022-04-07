@@ -2,6 +2,7 @@ version: "v1.0"
 
 debug: "${debug}"
 num_workers: "${num_workers}"
+run: true
 
 stage1:
   debug: "${postprocess.debug}"
@@ -26,3 +27,11 @@ stage2:
 stage3:
   debug: "${postprocess.debug}"
   num_workers: "${postprocess.num_workers}"
+
+nms:
+  debug: "${postprocess.debug}"
+  num_workers: "${postprocess.num_workers}"
+
+  overlap_threshold: 0.9
+  score_threshold: 0.5
+  angle_threshold: 45

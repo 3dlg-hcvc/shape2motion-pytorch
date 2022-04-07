@@ -94,7 +94,7 @@ class PostStage2Impl:
         output_data['gt_part_proposal'] = gt_part_proposal
         output_data['motion_regression'] = motion_regression
         output_data['moved_pcds'] = moved_pcds
-        output_data['pred_part_proposal'] = pred_part_proposal
+        output_data['pred_motion_scores'] = data.pred_motion_scores
         output_data['good_motion'] = good_motion
         return output_data
 
@@ -186,15 +186,15 @@ class PostStage2:
             part_proposal = output_data['gt_part_proposal']
             motion_regression = output_data['motion_regression']
             moved_pcds = output_data['moved_pcds']
-            pred_part_proposal = output_data['pred_part_proposal']
             good_motion = output_data['good_motion']
+            pred_motion_scores = output_data['pred_motion_scores']
             
             h5instance = self.output_h5.require_group(instance_name)
             h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
             h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal, compression='gzip')
             h5instance.create_dataset('motion_regression', shape=motion_regression.shape, data=motion_regression, compression='gzip')
             h5instance.create_dataset('moved_pcds', shape=moved_pcds.shape, data=moved_pcds, compression='gzip')
-            h5instance.create_dataset('pred_part_proposal', shape=pred_part_proposal.shape, data=pred_part_proposal, compression='gzip')
+            h5instance.create_dataset('pred_motion_scores', shape=pred_motion_scores.shape, data=pred_motion_scores, compression='gzip')
             h5instance.create_dataset('good_motion', shape=good_motion.shape, data=good_motion, compression='gzip')
 
     def stop(self):

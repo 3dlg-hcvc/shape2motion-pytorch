@@ -4,13 +4,14 @@ from time import time
 
 import hydra
 from hydra.utils import get_original_cwd
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 from tools.utils import io
 from network import Network
 from network import utils
 
 from preprocess import PreProcess
+from postprocess import NMS
 
 log = logging.getLogger('pipeline')
 
@@ -64,6 +65,21 @@ def main(cfg: DictConfig):
         if not cfg.network.stage3.eval_only:
             stage3_network.train()
         stage3_network.inference()
+
+    if cfg.postprocess.run:
+        stage1_output_cfg = get_latest_input_cfg(cfg.paths.network.stage1)
+        stage2_output_cfg = get_latest_input_cfg(cfg.paths.network.stage2)
+        stage3_output_cfg = get_latest_input_cfg(cfg.paths.network.stage3)
+        nms_cfg = cfg.postprocess.nms
+        with open_dict(nms_cfg):
+            nms_cfg.stage1 = stage1_output_cfg
+            nms_cfg.stage2 = stage2_output_cfg
+            nms_cfg.stage3 = stage3_output_cfg
+        nms = NMS(nms_cfg)
+        data_sets = ['train', cfg.network.test_split]
+        for data_set in data_sets:
+            output_path = os.path.join(cfg.paths.postprocess.path, f'{data_set}_' + cfg.paths.postprocess.output.nms_result)
+            nms.process(output_path, data_set)
 
 
 if __name__ == '__main__':

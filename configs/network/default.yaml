@@ -9,6 +9,8 @@ eval_only: false
 random_seed: 1
 num_points: 4096
 
+test_split: "val"
+
 stage1:
   name: "stage1"
   run: true
@@ -42,7 +44,7 @@ stage1:
       confidence_loss: 100.0
   
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
     batch_size: 8
@@ -76,7 +78,7 @@ stage2:
       motion_scores_loss: 1.0
 
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
     batch_size: 32
@@ -114,7 +116,7 @@ stage3:
       motion_regression_loss: 1.0
 
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
     batch_size: 8
