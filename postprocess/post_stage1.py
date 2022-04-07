@@ -79,8 +79,8 @@ class PostStage1Impl:
             elif joint_type == JointType.TRANS.value:
                 move_pts = self.trans3d(pts, joint_directions[i])
             elif joint_type == JointType.BOTH.value:
-                move_pts = self.trans3d(pts, joint_directions[i])
-                move_pts = self.rot3d(move_pts, joint_origins[i], joint_directions[i])
+                move_pts = self.rot3d(pts, joint_origins[i], joint_directions[i])
+                move_pts = self.trans3d(move_pts, joint_directions[i])
             else:
                 raise NotImplementedError(f'No implementation for the joint type value {joint_type}')
             move_pts_list.append(move_pts)
@@ -93,8 +93,10 @@ class PostStage1Impl:
         return rot_pts
 
     def trans3d(self, pts, joint_direction):
+        diag_length = LA.norm(np.amax(pts, axis=0) - np.amin(pts, axis=0))
+        move_trans = self.move_trans_param * diag_length
         joint_direction = joint_direction / LA.norm(joint_direction)
-        shift_vec = joint_direction * self.move_trans_param
+        shift_vec = joint_direction * move_trans
         trans_pts = pts + shift_vec
         return trans_pts
 
@@ -114,7 +116,6 @@ class PostStage1Impl:
         joint_all_directions = data.joint_all_directions
         gt_proposals = data.gt_proposals
         gt_joints = data.gt_joints
-
 
         # process predicted joint types
         pred_joint_type = pred_joint_type[1:, :]
@@ -166,7 +167,7 @@ class PostStage1Impl:
             tmp_score_max = gt_score_max[tmp_index]
             # tmp_score_idx = gt_score_idx[tmp_index]
             # sort in descending order
-            top_score_idx = tmp_score_max[::-1].argsort()[:self.top_k_score_threshold]
+            top_score_idx = tmp_score_max.argsort()[::-1][:self.top_k_score_threshold]
             top_score_max = tmp_score_max[top_score_idx]
             high_score_idx = top_score_idx[top_score_max > self.top_score_threshold]
             if high_score_idx.size == 0:
@@ -229,12 +230,14 @@ class PostStage1:
         self.gt_h5 = None
         self.df = pd.DataFrame()
         self.output_h5 = None
+        self.data_set = 'train'
 
-    def set_datapath(self, data_path, output_path):
+    def set_datapath(self, data_path, output_path, data_set):
         assert io.is_non_zero_file(data_path), OSError(f'Cannot find file {data_path}')
-        self.gt_h5 = h5py.File(data_path)
+        self.gt_h5 = h5py.File(data_path, 'r')
         io.ensure_dir_exists(os.path.dirname(output_path))
         self.output_h5 = h5py.File(output_path, 'w')
+        self.data_set = data_set
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()

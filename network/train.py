@@ -21,6 +21,7 @@ class Network:
 
         self.cfg = cfg
         self.stage = Stage[cfg.name]
+        self.input_cfg = input_cfg
 
         train_path = cfg.train.input_data if io.file_exist(cfg.train.input_data) else input_cfg.train
         test_path = input_cfg.val if cfg.test.split == 'val' else input_cfg.test
@@ -34,7 +35,10 @@ class Network:
 
     def train(self):
         if not self.cfg.train.continuous:
-            self.trainer.train()
+            if self.stage == Stage.stage2:
+                self.trainer.train_with_weights(self.input_cfg.prev_stage_dir)
+            else:
+                self.trainer.train()
         else:
             self.trainer.resume_train(self.cfg.train.input_model)
 

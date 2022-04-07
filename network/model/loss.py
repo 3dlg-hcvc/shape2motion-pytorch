@@ -52,6 +52,22 @@ def compute_motion_scores_loss(pred_motion_scores, gt_motion_scores, mask, epsil
     motion_scores_loss = torch.mean(torch.sum(torch.mean(F.smooth_l1_loss(pred_motion_scores, gt_motion_scores, reduction='none'), axis=2) * mask, axis=1) / (torch.sum(mask, axis=1) + epsilon))
     return motion_scores_loss
 
+def compute_part_proposal_loss(pred_part_proposal, gt_part_proposal, epsilon):
+    num_points = pred_part_proposal.size(dim=2)
+    part_proposal_loss = F.cross_entropy(pred_part_proposal, gt_part_proposal.long(), reduction='mean')
+    proposal = torch.argmax(pred_part_proposal, axis=1).int()
+    part_proposal_accuracy = torch.mean(torch.sum(torch.eq(proposal, gt_part_proposal.int()).float(), axis = 1) / num_points)
+    
+    proposal = torch.gt(proposal.float(), 0.5)
+    gt_proposal = torch.gt(gt_part_proposal.float(), 0.5)
+    iou = torch.mean(torch.sum(torch.logical_and(proposal, gt_proposal).float(), axis=-1) / (torch.sum(torch.logical_or(proposal, gt_proposal).float(), axis=-1) + epsilon))
+    return part_proposal_loss, part_proposal_accuracy, iou
+
+def compute_motion_regression_loss(pred_motion_regression, gt_motion_regression):
+    motion_regression_loss = torch.mean(torch.sum(F.smooth_l1_loss(pred_motion_regression, gt_motion_regression, reduction='none'), axis=1))
+    return motion_regression_loss
+
+
 
 
 

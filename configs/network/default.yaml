@@ -9,6 +9,8 @@ eval_only: false
 random_seed: 1
 num_points: 4096
 
+test_split: "val"
+
 stage1:
   name: "stage1"
   run: true
@@ -42,7 +44,7 @@ stage1:
       confidence_loss: 100.0
   
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
     batch_size: 8
@@ -70,17 +72,20 @@ stage2:
 
     max_epochs: 100
     lr: 0.001
-    batch_size: 8
+    batch_size: 32
 
     loss_weight:
       motion_scores_loss: 1.0
 
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 8
-    with_best: true
+    batch_size: 32
+    with_best: false
+  
+  model:
+    pretrained_module: ["backbone", "motion_feat", "simmat_feat"]
   
   postprocess: ${postprocess.stage2}
 
@@ -102,15 +107,19 @@ stage3:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 200
     lr: 0.001
-    batch_size: 8
+    batch_size: 12
+
+    loss_weight:
+      part_proposal_loss: 1.0
+      motion_regression_loss: 1.0
 
   test:
-    split: "val"
+    split: "${network.test_split}"
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: true
+    with_best: false
 
   postprocess: ${postprocess.stage3}
