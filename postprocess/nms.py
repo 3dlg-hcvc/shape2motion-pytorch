@@ -8,7 +8,6 @@ from numpy import linalg as LA
 from tools.visualizations import Visualizer
 from tools.utils import io
 from tools.utils.constant import JointType
-import pdb
 
 class NMS:
     def __init__(self, cfg):

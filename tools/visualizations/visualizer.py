@@ -197,8 +197,6 @@ class Visualizer(Renderer):
 
         part_proposal = gt_cfg.part_proposal
         joints = gt_cfg.joints
-        import pdb
-        pdb.set_trace()
         gt_viewer = Renderer(vertices=self.vertices, mask=part_proposal.astype(int))
         joint_origins = joints[:, :3]
         joint_directions = joints[:, 3:6]
@@ -220,7 +218,6 @@ class Visualizer(Renderer):
 
         part_proposal = pred_cfg.part_proposal
         joints = pred_cfg.joints
-        pdb.set_trace()
         pred_viewer = Renderer(vertices=self.vertices, mask=part_proposal.astype(int))
         joint_origins = joints[:, :3]
         joint_directions = joints[:, 3:6]

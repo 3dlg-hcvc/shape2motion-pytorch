@@ -13,8 +13,6 @@ from tools.utils import io
 from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
-import pdb
-
 log = logging.getLogger('post_stage2')
 
 class PostStage2Impl:

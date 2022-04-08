@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 import torch
 
+
 def compute_anchor_pts_loss(pred_anchor_pts, gt_anchor_pts, mask):
     negative_mask = torch.ones_like(mask) - mask
     num_pos = torch.unsqueeze(torch.sum(mask, 1), 1)
@@ -55,12 +56,10 @@ def compute_motion_scores_loss(pred_motion_scores, gt_motion_scores, mask, epsil
 def compute_part_proposal_loss(pred_part_proposal, gt_part_proposal, epsilon):
     num_points = pred_part_proposal.size(dim=2)
     part_proposal_loss = F.cross_entropy(pred_part_proposal, gt_part_proposal.long(), reduction='mean')
-    proposal = torch.argmax(pred_part_proposal, axis=1).int()
-    part_proposal_accuracy = torch.mean(torch.sum(torch.eq(proposal, gt_part_proposal.int()).float(), axis = 1) / num_points)
+    proposal = torch.argmax(pred_part_proposal, axis=1)
+    part_proposal_accuracy = torch.mean(torch.sum(torch.eq(proposal, gt_part_proposal.int()), axis = 1) / num_points)
     
-    proposal = torch.gt(proposal.float(), 0.5)
-    gt_proposal = torch.gt(gt_part_proposal.float(), 0.5)
-    iou = torch.mean(torch.sum(torch.logical_and(proposal, gt_proposal).float(), axis=-1) / (torch.sum(torch.logical_or(proposal, gt_proposal).float(), axis=-1) + epsilon))
+    iou = torch.mean(torch.sum(torch.logical_and(proposal, gt_part_proposal), axis=-1) / (torch.sum(torch.logical_or(proposal, gt_part_proposal), axis=-1) + epsilon))
     return part_proposal_loss, part_proposal_accuracy, iou
 
 def compute_motion_regression_loss(pred_motion_regression, gt_motion_regression):

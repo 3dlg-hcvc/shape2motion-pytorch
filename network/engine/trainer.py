@@ -120,7 +120,7 @@ class Shape2MotionTrainer:
             'total_loss': AvgRecorder()
         }
 
-        for i, (input_pts, gt_dict, id) in enumerate(self.train_loader):
+        for i, (input_pts, gt_dict, id) in enumerate(tqdm(self.train_loader, mininterval=5.0)):
             io_time.update(time() - end_time)
             # Move the tensors to the device
             s_time = time()

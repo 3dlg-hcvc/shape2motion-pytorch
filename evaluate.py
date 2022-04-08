@@ -20,7 +20,6 @@ import hydra
 from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 
-import pdb
 
 log = logging.getLogger('evaluate')
 
@@ -106,8 +105,6 @@ class Evaluation:
                 for i, gt_proposal in enumerate(gt_proposals):
                     tmp_gt_part_proposals[gt_proposal] = i+1
                 input_xyz = gt_object['input_pts'][:][:, :3]
-
-                pdb.set_trace()
 
                 gt_cfg = {}
                 gt_cfg['part_proposal'] = tmp_gt_part_proposals

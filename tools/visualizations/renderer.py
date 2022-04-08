@@ -3,7 +3,7 @@ import logging
 import trimesh
 import pyrender
 import imageio
-
+import time
 import numpy as np
 from PIL import Image
 
@@ -171,12 +171,21 @@ class Renderer:
             point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
             self.scene.add(point_cloud)
 
-    def show(self, window_size=None, window_name='Default Renderer'):
+    def show(self, window_size=None, window_name='Default Renderer', non_block=False):
         self._add_geometries_to_scenen()
         if window_size is None:
             window_size = [800, 600]
-        pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
-                        caption=self.caption)
+        if non_block:
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
+                            caption=self.caption, run_in_thread=True)
+
+            time.sleep(1.0)
+            v.close_external()
+            while v.is_active:
+                pass
+        else:
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
+                            caption=self.caption)
 
     def _compute_initial_camera_pose(self, angle=0):
         centroid = self.scene.centroid

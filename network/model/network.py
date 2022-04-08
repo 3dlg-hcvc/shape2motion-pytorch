@@ -6,13 +6,14 @@ from network.model.backbone import PointNet2
 from network.model import loss
 from tools.utils.constant import Stage
 
-import pdb
+from time import time
 
 class Shape2Motion(nn.Module):
     def __init__(self, stage, device, num_points):
         super().__init__()
         self.stage = Stage[stage] if isinstance(stage, str) else stage
         self.device = device
+        self.epsilon = None
 
         # Define the shared PN++
         self.backbone = PointNet2()
@@ -252,7 +253,7 @@ class Shape2Motion(nn.Module):
         elif self.stage == Stage.stage3:
             all_feat = torch.cat((dynamic_features, static_features), axis=1)
             all_feat, _ = torch.max(all_feat, axis=1)
-
+            
             proposal_feat = self.proposal_feat(all_feat)
             pred_proposal = self.proposal_layer(proposal_feat)
             regression_feat = self.regression_feat(all_feat)
@@ -263,7 +264,6 @@ class Shape2Motion(nn.Module):
                 'part_proposal': pred_proposal,
                 'motion_regression': pred_regression,
             }
-
         return pred
 
     def losses(self, pred, gt):
@@ -318,14 +318,15 @@ class Shape2Motion(nn.Module):
                 threshold = sim_thresh
             )
 
-            epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
-            epsilon = epsilon.to(self.device)
+            if self.epsilon is None:
+                self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
+                self.epsilon = self.epsilon.to(self.device)
             confidence_loss = loss.compute_confidence_loss(
                 pred['confidence'],
                 pred['simmat'],
                 gt_simmat,
                 threshold = sim_thresh,
-                epsilon = epsilon
+                epsilon = self.epsilon
             )
 
             loss_dict = {
@@ -346,25 +347,29 @@ class Shape2Motion(nn.Module):
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
             pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
-            epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
-            epsilon = epsilon.to(self.device)
+            if self.epsilon is None:
+                self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
+                self.epsilon = self.epsilon.to(self.device)
             motion_scores_loss = loss.compute_motion_scores_loss(
                 pred_motion_scores,
                 gt_motion_scores,
                 anchor_mask,
-                epsilon
+                self.epsilon
             )
 
             loss_dict = {
                 'motion_scores_loss': motion_scores_loss,
             }
         elif self.stage == Stage.stage3:
-            epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
-            epsilon = epsilon.to(self.device)
+            if self.epsilon is None:
+                self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
+                self.epsilon = self.epsilon.to(self.device)
+            
+
             part_proposal_loss, part_proposal_accuracy, iou = loss.compute_part_proposal_loss(
                 pred['part_proposal'],
                 gt['part_proposal'],
-                epsilon
+                self.epsilon
             )
             motion_regression_loss = loss.compute_motion_regression_loss(
                 pred['motion_regression'],
