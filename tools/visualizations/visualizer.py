@@ -73,6 +73,23 @@ class Visualizer(Renderer):
         viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.2)
         viewer.show()
 
+    def view_stage1_output(self, pred_cfg, proposal__downsample=1, joint_downsample=2):
+        for i in range(0, pred_cfg.part_proposals.shape[0], proposal__downsample):
+            pred_viewer = Renderer(vertices=self.vertices, mask=pred_cfg.part_proposals[i].astype(int))
+            anchor_mask = pred_cfg.anchor_mask > 0
+            pred_motions = pred_cfg.motions[anchor_mask, :]
+            pred_joint_origins = pred_motions[:, :3]
+            pred_joint_directions = pred_motions[:, 3:6]
+            pred_joint_directions = pred_joint_directions / LA.norm(pred_joint_directions, axis=1).reshape(-1,1)
+            pred_joint_type = pred_motions[:, 6]
+
+            pred_joint_colors = np.zeros((pred_joint_type.shape[0], 4))
+            pred_joint_colors[pred_joint_type == JointType.ROT.value] = [1.0, 0.0, 0.0, 1.0]
+            pred_joint_colors[pred_joint_type == JointType.TRANS.value] = [0.0, 0.0, 1.0, 1.0]
+            pred_joint_colors[pred_joint_type == JointType.BOTH.value] = [0.0, 1.0, 0.0, 1.0]
+
+            pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
+            pred_viewer.show(window_name=f'pred_{i}')
 
     def view_stage2_input(self, gt_cfg, pred_cfg, proposal__downsample=2, joint_downsample=2):
         # gt_cfg.part_proposals
@@ -213,7 +230,7 @@ class Visualizer(Renderer):
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
         gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
-        gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/gt.gif', as_gif=True)
+        gt_viewer.show(window_name='gt', non_block=False)
 
 
         part_proposal = pred_cfg.part_proposal
@@ -234,7 +251,7 @@ class Visualizer(Renderer):
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
         pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
-        pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/pred.gif', as_gif=True)
+        pred_viewer.show(window_name='pred', non_block=False)
 
 
             

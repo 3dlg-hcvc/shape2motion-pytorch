@@ -319,7 +319,8 @@ class Shape2MotionTrainer:
         self.model.to(self.device)
 
         # Save the prediction results into hdf5
-        data_sets = ['train', 'test']
+        # data_sets = ['train', 'test']
+        data_sets = ['test']
         for data_set in data_sets:
             if data_set == 'train':
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)

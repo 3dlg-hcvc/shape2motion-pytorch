@@ -67,6 +67,8 @@ def main(cfg: DictConfig):
         stage3_network.inference()
 
     if cfg.postprocess.run:
+        log.info(f'Postprocess start')
+        start = time()
         stage1_output_cfg = get_latest_input_cfg(cfg.paths.network.stage1)
         stage2_output_cfg = get_latest_input_cfg(cfg.paths.network.stage2)
         stage3_output_cfg = get_latest_input_cfg(cfg.paths.network.stage3)
@@ -77,10 +79,15 @@ def main(cfg: DictConfig):
             nms_cfg.stage3 = stage3_output_cfg
         io.ensure_dir_exists(cfg.paths.postprocess.path)
         nms = NMS(nms_cfg)
-        data_sets = ['train', cfg.network.test_split]
+        # data_sets = ['train', cfg.network.test_split]
+        data_sets = [cfg.network.test_split]
         for data_set in data_sets:
             output_path = os.path.join(cfg.paths.postprocess.path, f'{data_set}_' + cfg.paths.postprocess.output.nms_result)
             nms.process(output_path, data_set)
+        end = time()
+
+        duration_time = utils.duration_in_hours(end - start)
+        log.info(f'Postprocess: time duration {duration_time}')
 
 
 if __name__ == '__main__':

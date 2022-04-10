@@ -9,12 +9,15 @@ stage1:
   num_workers: "${postprocess.num_workers}"
 
   anchor_pts_threshold: 0.5
-  simmat_threshold: 70
+  simmat_threshold: 40
   part_proposal_threshold: 0.3
   top_k_score_threshold: 15
   top_score_threshold: 0.4
   move_angle_param: "np.pi"
-  move_trans_param: 0.15
+  move_trans_param: 0.5
+  overlap_threshold: 0.9
+  confidence_threshold: 0.3
+  min_points_threshold: 20
 
 stage2:
   debug: "${postprocess.debug}"
@@ -32,6 +35,6 @@ nms:
   debug: "${postprocess.debug}"
   num_workers: "${postprocess.num_workers}"
 
-  overlap_threshold: 0.9
-  score_threshold: 0.5
+  overlap_threshold: 0.5
+  score_threshold: 0.8
   angle_threshold: 45

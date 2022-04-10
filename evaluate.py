@@ -44,6 +44,8 @@ class Evaluation:
 
         best_matches = []
         for object_name in pred_h5.keys():
+            if object_name.split('_')[0] != 'chair':
+                continue
             best_match = {}
             best_match = {
                 'object_name': object_name,
@@ -153,10 +155,11 @@ class Evaluation:
 def main(cfg: DictConfig):
     OmegaConf.update(cfg, "paths.result_dir", io.to_abs_path(cfg.paths.result_dir, get_original_cwd()))
     nms_output_cfg = get_latest_nms_output_cfg(cfg.paths.postprocess)
-
+    
     evaluator = Evaluation(cfg)
 
-    data_sets = ['train', cfg.test_split]
+    # data_sets = ['train', cfg.test_split]
+    data_sets = [cfg.test_split]
     for data_set in data_sets:
         if data_set == 'train':
             input_path = cfg.paths.preprocess.output.train

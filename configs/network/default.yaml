@@ -48,7 +48,7 @@ stage1:
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: false
+    with_best: true
 
   postprocess: ${postprocess.stage1}
 
@@ -81,8 +81,8 @@ stage2:
     split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 32
-    with_best: false
+    batch_size: 16
+    with_best: true
   
   model:
     pretrained_module: ["backbone", "motion_feat", "simmat_feat"]
@@ -120,6 +120,6 @@ stage3:
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: false
+    with_best: true
 
   postprocess: ${postprocess.stage3}

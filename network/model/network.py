@@ -318,9 +318,9 @@ class Shape2Motion(nn.Module):
                 threshold = sim_thresh
             )
 
-            if self.epsilon is None:
-                self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
-                self.epsilon = self.epsilon.to(self.device)
+            # if self.epsilon is None:
+            self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
+            self.epsilon = self.epsilon.to(self.device)
             confidence_loss = loss.compute_confidence_loss(
                 pred['confidence'],
                 pred['simmat'],
