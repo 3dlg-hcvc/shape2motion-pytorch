@@ -47,6 +47,7 @@ class Shape2Motion(nn.Module):
             #task1: key_point
             self.feat1 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.anchor_pts_layer = nn.Conv1d(128, 2, kernel_size=1, padding=0)
@@ -54,6 +55,7 @@ class Shape2Motion(nn.Module):
             #task2_1: joint_direction_category
             self.feat2_1 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.joint_direction_cat_layer = nn.Conv1d(128, 15, kernel_size=1, padding=0)
@@ -61,6 +63,7 @@ class Shape2Motion(nn.Module):
             #task2_2: joint_direction_regression
             self.feat2_2 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.joint_direction_reg_layer = nn.Conv1d(128, 3, kernel_size=1, padding=0)
@@ -68,6 +71,7 @@ class Shape2Motion(nn.Module):
             #task_3: joint_origin_regression
             self.feat3 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.joint_origin_reg_layer = nn.Conv1d(128, 3, kernel_size=1, padding=0)
@@ -75,6 +79,7 @@ class Shape2Motion(nn.Module):
             #task_4: joint_type
             self.feat4 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.joint_type_layer = nn.Conv1d(128, 4, kernel_size=1, padding=0)
@@ -89,6 +94,7 @@ class Shape2Motion(nn.Module):
             #task_6: confidence
             self.feat6 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
+                nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
             self.confidence_layer = nn.Conv1d(128, 1, kernel_size=1, padding=0)

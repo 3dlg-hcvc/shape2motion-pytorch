@@ -38,127 +38,239 @@ class Evaluation:
     def __init__(self, cfg):
         self.cfg = cfg
 
-    def evaluate(self, gt_h5file, pred_h5file):
-        gt_h5 = h5py.File(gt_h5file, 'r')
-        pred_h5 = h5py.File(pred_h5file, 'r')
+    def compute_epe(self, pts, pred_joint, gt_joint):
+        gt_mv_pts = self.move_pts_with_joint(pts, gt_joint[:3], gt_joint[3:6], gt_joint[6])
+        pred_mv_pts = self.move_pts_with_joint(pts, pred_joint[:3], pred_joint[3:6], pred_joint[6])
+        np.sqrt(np.sum(np.square(gt_mv_pts - pred_mv_pts)))
+        return np.mean(LA.norm(gt_mv_pts - pred_mv_pts, axis=1))
+        
+    def move_pts_with_joint(self, pts, joint_origin, joint_direction, joint_type, angle=np.pi, trans=0.5):
+        if joint_type == JointType.ROT.value:
+            move_pts = self.rot3d(pts, joint_origin, joint_direction, angle)
+        elif joint_type == JointType.TRANS.value:
+            move_pts = self.trans3d(pts, joint_direction, trans)
+        elif joint_type == JointType.BOTH.value:
+            move_pts = self.rot3d(pts, joint_origin, joint_direction, angle)
+            move_pts = self.trans3d(move_pts, joint_direction, trans)
+        else:
+            log.warn(f'No implementation for the joint type value {joint_type}')
+        return move_pts
 
-        best_matches = []
-        for object_name in pred_h5.keys():
-            best_match = {
-                'object_name': object_name,
-                'iou': [],
-                'md': [],
-                'oe': [],
-                'ta': [],
-                'matches': {},
-            }
-            gt_object = gt_h5[object_name]
-            gt_proposals = gt_object['gt_proposals'][:][1:, :].astype(bool)
-            gt_joints = gt_object['gt_joints'][:]
+    def rot3d(self, pts, joint_origin, joint_direction, angle):
+        joint_direction = joint_direction / LA.norm(joint_direction)
+        rot_mat = R.from_rotvec(angle * joint_direction).as_matrix()
+        rot_pts = np.dot(pts - joint_origin, rot_mat.transpose()) + joint_origin
+        return rot_pts
 
-            turn_idx = np.where(np.sum(gt_proposals, axis=1) == 0)[0]
-
-            best_match['gt_part_num'] = gt_proposals.shape[0]
-            best_match['gt_joint_num'] = gt_joints.shape[0]
-
-            pred_object = pred_h5[object_name]
-            pred_part_proposals = pred_object['pred_part_proposal'][:]
-            pred_joints = pred_object['pred_joints'][:]
-            pred_scores = pred_object['pred_scores'][:]
-            best_match['pred_part_num'] = np.unique(pred_part_proposals).shape[0] - 1
-            best_match['pred_joint_num'] = pred_joints.shape[0]
-            
-            high_scores = np.argsort(pred_scores)[::-1]
-            for idx in high_scores:
-                tmp_pred_part_proposal = pred_part_proposals == (idx+1)
-                tmp_pred_joints = pred_joints[idx]
-
-                tmp_pred_part_proposal = np.tile(tmp_pred_part_proposal, (gt_proposals.shape[0], 1))
-                inter = np.sum(np.logical_and(tmp_pred_part_proposal, gt_proposals), axis=1)
-                outer = np.sum(np.logical_or(tmp_pred_part_proposal, gt_proposals), axis=1)
-                iou = inter / (outer + 1.0e-9)
-
-                good_part_candidates = np.where(iou > self.cfg.iou_threshold)[0]
-                
-                for chosen in best_match['matches'].values():
-                    good_part_candidates = good_part_candidates[good_part_candidates != chosen]
-
-                if len(good_part_candidates) > 0:
-                    best_candidate = np.argmax(iou[good_part_candidates])
-                    best_candidate = good_part_candidates[best_candidate]
-                    best_match['matches'][idx] = best_candidate
-
-                    have_turn = np.where(turn_idx == best_candidate+1)[0].size > 0
-
-                    selected_pred_joint = tmp_pred_joints
-                    gt_joint = gt_joints[best_candidate]
-                    md = self.compute_dist(selected_pred_joint[:3], gt_joint)
-                    oe = np.arccos(np.clip(np.dot(selected_pred_joint[3:6], gt_joint[3:6]) / (LA.norm(selected_pred_joint[3:6]) * LA.norm(gt_joint[3:6])), -1, 1))
-                    ta = selected_pred_joint[6] == gt_joint[6]
-                    if have_turn:
-                        gt_joint2 = gt_joints[best_candidate+1]
-                        md2 = self.compute_dist(selected_pred_joint[:3], gt_joint2)
-                        oe2 = np.arccos(np.clip(np.dot(selected_pred_joint[3:6], gt_joint2[3:6]) / (LA.norm(selected_pred_joint[3:6]) * LA.norm(gt_joint2[3:6])), -1, 1))
-                        ta2 = selected_pred_joint[6] == gt_joint2[6]
-                        if oe2 < oe:
-                            best_match['matches'][idx] = best_candidate + 1
-                        md = np.minimum(md, md2)
-                        oe = np.minimum(oe, oe2)
-                        ta = np.maximum(ta, ta2)
-                    best_match['iou'].append(iou[best_candidate])
-                    best_match['md'].append(md)
-                    best_match['oe'].append(oe)
-                    best_match['ta'].append(ta)
-            if self.cfg.debug:
-                tmp_pred_part_proposals = np.zeros_like(pred_part_proposals)
-                for pred_idx, gt_idx in best_match['matches'].items():
-                    tmp_pred_part_proposals[pred_part_proposals == (pred_idx+1)] = (gt_idx+1)
-                tmp_gt_part_proposals = np.zeros_like(pred_part_proposals)
-                for i, gt_proposal in enumerate(gt_proposals):
-                    tmp_gt_part_proposals[gt_proposal] = i+1
-                input_xyz = gt_object['input_pts'][:][:, :3]
-
-                gt_cfg = {}
-                gt_cfg['part_proposal'] = tmp_gt_part_proposals
-                gt_cfg['joints'] = gt_joints
-                gt_cfg = SimpleNamespace(**gt_cfg)
-
-                pred_cfg = {}
-                pred_cfg['part_proposal'] = tmp_pred_part_proposals
-                pred_cfg['joints'] = pred_joints
-                pred_cfg = SimpleNamespace(**pred_cfg)
-
-                viz = Visualizer(input_xyz)
-                viz.view_evaluation_result(gt_cfg, pred_cfg)
-
-
-            best_matches.append(best_match)
-
-        eval_results = {
-            'iou': [],
-            'md': [],
-            'oe': [],
-            'ta': [],
-            'part_recall': [],
-            'joint_recall': [],
-        }
-        for best_match in best_matches:
-            eval_results['iou'] += best_match['iou']
-            eval_results['md'] += best_match['md']
-            eval_results['oe'] += best_match['oe']
-            eval_results['ta'] += best_match['ta']
-            eval_results['part_recall'].append(best_match['pred_part_num'] / best_match['gt_part_num'])
-            eval_results['joint_recall'].append(best_match['pred_joint_num'] / best_match['gt_joint_num'])
-        for key, val in eval_results.items():
-            log.info(f'mean {key}: {np.mean(val)}')
-            
+    def trans3d(self, pts, joint_direction, trans):
+        joint_direction = joint_direction / LA.norm(joint_direction)
+        shift_vec = joint_direction * trans
+        trans_pts = pts + shift_vec
+        return trans_pts
+    
     def compute_dist(self, pred_origin, gt_joint):
         q1 = gt_joint[:3]
         q2 = gt_joint[:3] + gt_joint[3:6]
         vec1 = q2 - q1
         vec2 = pred_origin - q1
-        dist = LA.norm(np.cross(vec1, vec2) / LA.norm(q2 - q1))
+        dist = LA.norm(np.cross(vec1, vec2) / LA.norm(vec1))
         return dist
+
+    def evaluate(self, gt_h5file, pred_h5file):
+        gt_h5 = h5py.File(gt_h5file, 'r')
+        pred_h5 = h5py.File(pred_h5file, 'r')
+        
+        best_matches = []
+        print(pred_h5.keys())
+        for object_name in pred_h5.keys():
+            best_match = {
+                'object_name': object_name,
+                'iou': [],
+                'epe': [],
+                'md': [],
+                'oe': [],
+                'ta': [],
+                'part_matches': {},
+                'joint_matches': {},
+                'num_gt_parts': 0,
+                'num_pred_parts': 0,
+                'num_gt_joints': 0,
+                'num_pred_joints': 0,
+            }
+            
+            gt_object = gt_h5[object_name]
+            input_pts = gt_object['input_pts'][:]
+            input_xyz = input_pts[:, :3]
+            gt_proposals = gt_object['gt_proposals'][:][1:, :].astype(bool)
+            gt_joints = gt_object['gt_joints'][:]
+            best_match['num_gt_parts'] = gt_proposals.shape[0]
+            best_match['num_gt_joints'] = gt_joints.shape[0]
+
+            turn_idx = np.where(np.sum(gt_proposals, axis=1) == 0)[0]
+
+            pred_object = pred_h5[object_name]
+            pred_part_proposals = pred_object['pred_part_proposal'][:]
+            pred_joints = pred_object['pred_joints'][:]
+            pred_scores = pred_object['pred_scores'][:]
+            pred_joints_map = pred_object['pred_joints_map'][:]
+            best_match['num_pred_parts'] = len(np.unique(pred_part_proposals)) - 1
+            best_match['num_pred_joints'] = np.sum(np.any(pred_joints, axis=1))
+            
+            best_parts = np.ones(gt_proposals.shape[0]) * -1.0
+            best_ious = np.ones(gt_proposals.shape[0]) * -1.0
+            for part_idx in range(gt_proposals.shape[0]):
+                gt_proposal = gt_proposals[part_idx, :]
+                best_part = -1
+                best_iou = -1
+                for pred_part_idx in range(np.unique(pred_part_proposals).shape[0]-1):
+                    if pred_part_idx in best_parts:
+                        continue
+                    pred_part_proposal = pred_part_proposals == (pred_part_idx+1)
+                    inter = np.sum(np.logical_and(pred_part_proposal, gt_proposal))
+                    outer = np.sum(np.logical_or(pred_part_proposal, gt_proposal))
+                    iou = inter / (outer + 1.0e-9)
+                    if iou > self.cfg.iou_threshold and iou > best_iou:
+                        best_iou = iou
+                        best_part = pred_part_idx
+                best_parts[part_idx] = best_part
+                best_ious[part_idx] = best_iou
+                if best_part < 0:
+                    continue
+
+                best_match['iou'].append(best_iou)
+                best_match['part_matches'][part_idx] = best_part
+                have_turn = np.where(turn_idx == part_idx+1)[0].size > 0
+                pred_joints_idx = np.where(pred_joints_map == best_part)[0]
+                pred_part_joints_scores = pred_scores[pred_joints_idx]
+                pred_part_joints_sorted_idx = np.argsort(pred_part_joints_scores)[::-1]
+                pred_part_joints_sorted_idx = pred_joints_idx[pred_part_joints_sorted_idx]
+                pred_part_joints = pred_joints[pred_part_joints_sorted_idx, :]
+                gt_joint = gt_joints[part_idx]
+                selected_joint = None
+                for j, joint in enumerate(pred_part_joints):
+                    if not np.any(joint) or part_idx in best_match['joint_matches'].keys():
+                        continue
+                    md = None
+                    oe = None
+                    ta = None
+                    if part_idx not in best_match['joint_matches'].keys():
+                        md = self.compute_dist(joint[:3], gt_joint)
+                        oe = np.arccos(np.clip(np.dot(joint[3:6], gt_joint[3:6]) / (LA.norm(joint[3:6]) * LA.norm(gt_joint[3:6])), -1, 1))
+                        ta = joint[6] == gt_joint[6]
+                        selected_joint = gt_joint
+                    if have_turn:
+                        if part_idx + 1 not in best_match['joint_matches'].keys():
+                            gt_joint2 = gt_joints[part_idx+1]
+                            md2 = self.compute_dist(joint[:3], gt_joint2)
+                            oe2 = np.arccos(np.clip(np.dot(joint[3:6], gt_joint2[3:6]) / (LA.norm(joint[3:6]) * LA.norm(gt_joint2[3:6])), -1, 1))
+                            ta2 = joint[6] == gt_joint2[6]
+                            if oe is not None and oe2 < oe:
+                                best_match['joint_matches'][part_idx+1] = pred_part_joints_sorted_idx[j]
+                                md = np.minimum(md, md2)
+                                oe = np.minimum(oe, oe2)
+                                ta = np.maximum(ta, ta2)
+                                selected_joint = gt_joint2
+                            elif oe is not None and oe2 >= oe:
+                                best_match['joint_matches'][part_idx] = pred_part_joints_sorted_idx[j]
+                                md = np.minimum(md, md2)
+                                oe = np.minimum(oe, oe2)
+                                ta = np.maximum(ta, ta2)
+                                selected_joint = gt_joint
+                            else:
+                                md = md2
+                                oe = oe2
+                                ta = ta2
+                                selected_joint = gt_joint2
+                                best_match['joint_matches'][part_idx+1] = pred_part_joints_sorted_idx[j]
+                    else:
+                        best_match['joint_matches'][part_idx] = pred_part_joints_sorted_idx[j]
+                    if md is not None:
+                        best_match['md'].append(md)
+                        best_match['oe'].append(oe)
+                        best_match['ta'].append(ta)
+                        epe = self.compute_epe(input_xyz[gt_proposal], joint, selected_joint)
+                        best_match['epe'].append(epe)
+
+                        # if self.cfg.debug:
+                        #     gt_cfg = {}
+                        #     gt_cfg['part_proposal'] = gt_proposal
+                        #     gt_cfg['joint'] = selected_joint
+                        #     gt_cfg = SimpleNamespace(**gt_cfg)
+
+                        #     pred_cfg = {}
+                        #     pred_cfg['part_proposal'] = pred_part_proposals == (best_part+1)
+                        #     pred_cfg['joint'] = joint
+                        #     pred_cfg = SimpleNamespace(**pred_cfg)
+
+                        #     input_xyz = gt_object['input_pts'][:][:, :3]
+                        #     viz = Visualizer(input_xyz)
+                        #     viz.view_evaluation_result_each(gt_cfg, pred_cfg)
+
+            best_matches.append(best_match)
+            if self.cfg.debug:
+                gt_cfg = {}
+                gt_part_indices = np.asarray(list(best_match['part_matches'].keys()))
+                gt_joint_indices = np.asarray(list(best_match['joint_matches'].keys()))
+                if len(gt_part_indices) == 0 or len(gt_joint_indices) == 0:
+                    continue
+                matched_gt_part_proposals = gt_proposals[gt_part_indices, :]
+                matched_gt_joints = gt_joints[gt_joint_indices, :]
+                
+                gt_cfg['part_proposals'] = matched_gt_part_proposals
+                gt_cfg['joints'] = matched_gt_joints
+                gt_cfg = SimpleNamespace(**gt_cfg)
+
+                pred_cfg = {}
+                pred_part_indices = np.asarray(list(best_match['part_matches'].values()))
+                pred_joint_indices = np.asarray(list(best_match['joint_matches'].values()))
+                matched_pred_part_proposals = np.zeros((pred_part_indices.shape[0], input_xyz.shape[0]))
+                for i in range(matched_pred_part_proposals.shape[0]):
+                    matched_pred_part_proposals[i] = pred_part_proposals == (pred_part_indices[i]+1)
+                matched_pred_joints = pred_joints[pred_joint_indices, :]
+                pred_cfg['part_proposals'] = matched_pred_part_proposals
+                pred_cfg['joints'] = matched_pred_joints
+                pred_cfg = SimpleNamespace(**pred_cfg)
+
+                input_xyz = gt_object['input_pts'][:][:, :3]
+                viz = Visualizer(input_xyz)
+                viz.view_evaluation_result(gt_cfg, pred_cfg)
+
+        eval_results = {
+            'iou': [],
+            'epe': [],
+            'md': [],
+            'oe': [],
+            'ta': [],
+            'part_recall': [],
+            'joint_recall': [],
+            'part_precision': [],
+            'joint_precision': [],
+        }
+        for best_match in best_matches:
+            # if best_match['object_name'].split('_')[0] == 'motor':
+            eval_results['iou'] += best_match['iou']
+            eval_results['epe'] += best_match['epe']
+            eval_results['md'] += best_match['md']
+            eval_results['oe'] += best_match['oe']
+            eval_results['ta'] += best_match['ta']
+            
+            part_recall = len(best_match['part_matches']) / best_match['num_gt_parts']
+            joint_recall = len(best_match['joint_matches']) / best_match['num_gt_joints']
+
+            if best_match['num_pred_parts'] > 0:
+                part_precision = len(best_match['part_matches']) / best_match['num_pred_parts']
+            else:
+                part_precision = 0
+            if best_match['num_pred_joints'] > 0:
+                joint_precision = len(best_match['joint_matches']) / best_match['num_pred_joints']
+            else:
+                joint_precision = 0
+            eval_results['part_recall'].append(part_recall)
+            eval_results['joint_recall'].append(joint_recall)
+            eval_results['part_precision'].append(part_precision)
+            eval_results['joint_precision'].append(joint_precision)
+        for key, val in eval_results.items():
+            log.info(f'mean {key}: {np.mean(val)}')
 
 
 @hydra.main(config_path='configs', config_name='evaluate')

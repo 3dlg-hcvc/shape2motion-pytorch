@@ -208,7 +208,7 @@ class Visualizer(Renderer):
         pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
         pred_viewer.show(window_name=f'pred', non_block=True)
 
-    def view_evaluation_result(self, gt_cfg, pred_cfg):
+    def view_evaluation_result_each(self, gt_cfg, pred_cfg):
         # part_proposal
         # joints
 
@@ -251,5 +251,51 @@ class Visualizer(Renderer):
         gt_viewer.add_trimesh_arrows([joint_origins], [joint_directions], colors=joint_colors, length=0.4)
         gt_viewer.show(window_name='pred', non_block=True)
 
+    def view_evaluation_result(self, gt_cfg, pred_cfg):
+        part_proposals = gt_cfg.part_proposals
+        joints = gt_cfg.joints
+        mask = np.zeros(part_proposals.shape[1])
+        for i in range(part_proposals.shape[0]):
+            mask[part_proposals[i, :]] = (i+1)
+        gt_viewer = Renderer(vertices=self.vertices, mask=mask.astype(int))
+        joint_origins = joints[:, :3]
+        joint_directions = joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        gt_viewer.show(window_name=f'gt', non_block=True)
+
+        part_proposals = pred_cfg.part_proposals.astype(bool)
+        joints = pred_cfg.joints
+        mask = np.zeros(part_proposals.shape[1])
+        for i in range(part_proposals.shape[0]):
+            mask[part_proposals[i, :]] = (i+1)
+        pred_viewer = Renderer(vertices=self.vertices, mask=mask.astype(int))
+        joint_origins = joints[:, :3]
+        joint_directions = joints[:, 3:6]
+        joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
+        
+        joint_types = joints[:, 6]
+        joint_colors = np.zeros((len(joint_types), 4))
+        for i, joint_type in enumerate(joint_types):
+            if joint_type == JointType.ROT.value:
+                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            elif joint_type == JointType.TRANS.value:
+                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            elif joint_type == JointType.BOTH.value:
+                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+
+        pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        pred_viewer.show(window_name=f'pred', non_block=True)
 
             

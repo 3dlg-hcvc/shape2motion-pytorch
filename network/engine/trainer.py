@@ -80,18 +80,17 @@ class Shape2MotionTrainer:
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')
         else:
-            # self.train_loader = torch.utils.data.DataLoader(
-            #     Shape2MotionDataset(
-            #         self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
-            #     ),
-            #     batch_size=self.cfg.test.batch_size,
-            #     shuffle=False,
-            #     num_workers=self.cfg.num_workers,
-            #     pin_memory=True
-            # )
+            self.train_loader = torch.utils.data.DataLoader(
+                Shape2MotionDataset(
+                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
+                ),
+                batch_size=self.cfg.test.batch_size,
+                shuffle=False,
+                num_workers=self.cfg.num_workers,
+                pin_memory=True
+            )
 
-            # self.log.info(f'Num {len(self.train_loader)} batches in train loader')
-            pass
+            self.log.info(f'Num {len(self.train_loader)} batches in train loader')
 
         self.test_loader = torch.utils.data.DataLoader(
             Shape2MotionDataset(
@@ -320,8 +319,8 @@ class Shape2MotionTrainer:
         self.model.to(self.device)
 
         # Save the prediction results into hdf5
-        # data_sets = ['train', 'test']
-        data_sets = ['test']
+        data_sets = ['train', 'test']
+        # data_sets = ['test']
         for data_set in data_sets:
             if data_set == 'train':
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
