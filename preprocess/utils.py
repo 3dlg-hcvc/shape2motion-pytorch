@@ -95,16 +95,16 @@ class Mat2Hdf5:
         if len(input_file_indices) > 0:
             files = np.asarray(files)[input_file_indices]
         
-        # pool = Pool(processes=self.num_processes)
+        pool = Pool(processes=self.num_processes)
         proc_impl = Mat2Hdf5Impl(self.cfg)
-        # jobs = [pool.apply_async(proc_impl, args=(i,file,)) for i, file in enumerate(files)]
-        # pool.close()
-        # pool.join()
-        # output_filepath_list = [job.get() for job in jobs]
+        jobs = [pool.apply_async(proc_impl, args=(i,file,)) for i, file in enumerate(files)]
+        pool.close()
+        pool.join()
+        output_filepath_list = [job.get() for job in jobs]
 
-        output_filepath_list = []
-        for i, file in enumerate(files):
-            output_filepath_list.append(proc_impl(i, file))
+        # output_filepath_list = []
+        # for i, file in enumerate(files):
+        #     output_filepath_list.append(proc_impl(i, file))
 
         h5file = h5py.File(self.output_path, 'w')
         data_info_list = []

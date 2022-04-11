@@ -64,30 +64,26 @@ class NMS:
 
         for object_name in tqdm(stage1_output.keys()):
             instance_names = object2instance_names[object_name]
+            if len(instance_names) == 0:
+                continue
             stage1_instance = stage1_output[object_name]
             input_pts = stage1_instance['input_pts'][:]
             input_xyz = input_pts[:, :3]
             pred_anchor_mask = stage1_instance['pred_anchor_mask'][:].astype(bool)
             pred_motions = stage1_instance['pred_motions'][:]
-            boxes = np.zeros((len(instance_names), 7))
+            
+            masks = []
+            scores = []
             # pick the part proposals
             for i, instance_name in enumerate(instance_names):
                 stage2_instance = stage2_output[instance_name]
                 pred_motion_scores = stage2_instance['pred_motion_scores'][:]
                 stage3_instance = stage3_output[instance_name]
                 pred_part_proposal = stage3_instance['part_proposal'][:].astype(bool)
-
-                part_pts = input_xyz[pred_part_proposal, :]
-                if len(part_pts) == 0:
-                    log.info('part proposal contains no point')
-                    continue
-                min_bound = np.amin(part_pts, axis=0)
-                max_bound = np.amax(part_pts, axis=0)
+                masks.append(pred_part_proposal)
                 score = np.amax(pred_motion_scores)
-                boxes[i, :3] = min_bound
-                boxes[i, 3:6] = max_bound
-                boxes[i, 6] = score
-            part_pick = self.nms(boxes)
+                scores.append(score)
+            part_pick = self.nms(np.asarray(masks), np.asarray(scores))
             assert(len(part_pick) > 0), 'No part proposal picked in nms'
 
             selected_joints = []
@@ -115,6 +111,7 @@ class NMS:
             pred_part_proposal_all = np.zeros(input_xyz.shape[0])
             pred_joints_all = None
             pred_scores_all = None
+            pred_joints_map = None
             for i, pick_idx in enumerate(part_pick):
                 instance_name = instance_names[pick_idx]
 
@@ -126,24 +123,26 @@ class NMS:
                 motion_regression = stage3_instance['motion_regression'][:]
                 pred_part_proposal_all[pred_part_proposal] = i+1
 
-                try:
-                    pred_joints_idx = selected_joints[i]
-                    if len(pred_joints_idx) == 0:
-                        continue
-                except:
-                    import pdb
-                    pdb.set_trace()
-
-                pred_joints = pred_motions[pred_anchor_mask, :][pred_joints_idx, :]
-                # pred_joints[:, :6] += motion_regression
-                pred_scores = pred_motion_scores[pred_anchor_mask][pred_joints_idx]
+                pred_joints_idx = selected_joints[i]
+                num_joints_per_part = len(pred_joints_idx)
+                if len(pred_joints_idx) == 0:
+                    pred_joints = np.zeros((1, 7))
+                    pred_scores = np.zeros(1)
+                    pred_joints_map_each = np.ones(1) * -1
+                else:
+                    pred_joints = pred_motions[pred_anchor_mask, :][pred_joints_idx, :]
+                    pred_joints[:, :6] += motion_regression
+                    pred_scores = pred_motion_scores[pred_anchor_mask][pred_joints_idx]
+                    pred_joints_map_each = np.ones(num_joints_per_part) * i
 
                 if pred_joints_all is None:
                     pred_joints_all = pred_joints
                     pred_scores_all = pred_scores
+                    pred_joints_map = pred_joints_map_each
                 else:
                     pred_joints_all = np.concatenate((pred_joints_all, pred_joints), axis=0)
                     pred_scores_all = np.concatenate((pred_scores_all, pred_scores), axis=0)
+                    pred_joints_map = np.concatenate((pred_joints_map, pred_joints_map_each), axis=0)
 
             if pred_joints_all is None:
                 continue
@@ -151,12 +150,29 @@ class NMS:
             h5instance.create_dataset('pred_part_proposal', shape=pred_part_proposal_all.shape, data=pred_part_proposal_all, compression='gzip')
             h5instance.create_dataset('pred_joints', shape=pred_joints_all.shape, data=pred_joints_all, compression='gzip')
             h5instance.create_dataset('pred_scores', shape=pred_scores_all.shape, data=pred_scores_all, compression='gzip')
+            h5instance.create_dataset('pred_joints_map', shape=pred_joints_map.shape, data=pred_joints_map, compression='gzip')
             if self.cfg.debug:
                 viz = Visualizer(input_xyz, mask=pred_part_proposal_all.astype(int))
                 viz.view_nms_output(pred_joints_all)
         output_h5.close()
             
-    def nms(self, boxes):
+    def nms(self, masks, scores):
+        I = np.argsort(scores)
+        pick = []
+        while (I.size!=0):
+            last = I.size
+            i = I[-1]
+            pick.append(i)
+
+            this_mask = np.tile(masks[i], (len(I[:last-1]), 1))
+
+            inter = np.logical_and(this_mask, masks[I[:last-1]])
+            o = inter / (np.logical_or(this_mask, masks[I[:last-1]]) + 1.0e-9)
+            I = np.delete(I, np.concatenate(([last-1], np.where(o > self.cfg.overlap_threshold)[0])))
+
+        return pick
+    
+    def nms_boxes(self, boxes):
         x1 = boxes[:,0]
         y1 = boxes[:,1]
         z1 = boxes[:,2]

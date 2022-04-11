@@ -44,9 +44,6 @@ class Evaluation:
 
         best_matches = []
         for object_name in pred_h5.keys():
-            if object_name.split('_')[0] != 'chair':
-                continue
-            best_match = {}
             best_match = {
                 'object_name': object_name,
                 'iou': [],
@@ -58,6 +55,8 @@ class Evaluation:
             gt_object = gt_h5[object_name]
             gt_proposals = gt_object['gt_proposals'][:][1:, :].astype(bool)
             gt_joints = gt_object['gt_joints'][:]
+
+            turn_idx = np.where(np.sum(gt_proposals, axis=1) == 0)[0]
 
             best_match['gt_part_num'] = gt_proposals.shape[0]
             best_match['gt_joint_num'] = gt_joints.shape[0]
@@ -77,7 +76,7 @@ class Evaluation:
                 tmp_pred_part_proposal = np.tile(tmp_pred_part_proposal, (gt_proposals.shape[0], 1))
                 inter = np.sum(np.logical_and(tmp_pred_part_proposal, gt_proposals), axis=1)
                 outer = np.sum(np.logical_or(tmp_pred_part_proposal, gt_proposals), axis=1)
-                iou = inter / outer
+                iou = inter / (outer + 1.0e-9)
 
                 good_part_candidates = np.where(iou > self.cfg.iou_threshold)[0]
                 
@@ -89,12 +88,23 @@ class Evaluation:
                     best_candidate = good_part_candidates[best_candidate]
                     best_match['matches'][idx] = best_candidate
 
-                    # TODO: check how object with multiple joints will work here
+                    have_turn = np.where(turn_idx == best_candidate+1)[0].size > 0
+
                     selected_pred_joint = tmp_pred_joints
                     gt_joint = gt_joints[best_candidate]
                     md = self.compute_dist(selected_pred_joint[:3], gt_joint)
                     oe = np.arccos(np.clip(np.dot(selected_pred_joint[3:6], gt_joint[3:6]) / (LA.norm(selected_pred_joint[3:6]) * LA.norm(gt_joint[3:6])), -1, 1))
                     ta = selected_pred_joint[6] == gt_joint[6]
+                    if have_turn:
+                        gt_joint2 = gt_joints[best_candidate+1]
+                        md2 = self.compute_dist(selected_pred_joint[:3], gt_joint2)
+                        oe2 = np.arccos(np.clip(np.dot(selected_pred_joint[3:6], gt_joint2[3:6]) / (LA.norm(selected_pred_joint[3:6]) * LA.norm(gt_joint2[3:6])), -1, 1))
+                        ta2 = selected_pred_joint[6] == gt_joint2[6]
+                        if oe2 < oe:
+                            best_match['matches'][idx] = best_candidate + 1
+                        md = np.minimum(md, md2)
+                        oe = np.minimum(oe, oe2)
+                        ta = np.maximum(ta, ta2)
                     best_match['iou'].append(iou[best_candidate])
                     best_match['md'].append(md)
                     best_match['oe'].append(oe)

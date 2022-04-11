@@ -39,11 +39,11 @@ class PreProcess:
             config['log'] = log
 
             log.info(f'Processing Start with {num_processes} workers on train set')
-            # config['path'] = os.path.join(self.dataset_dir, train_set)
-            # config['set'] = 'train'
-            # config['output_path'] = os.path.join(self.output_cfg.path, self.output_cfg.train_data)
-            # converter = Mat2Hdf5(config)
-            # train_input, train_info = converter.convert(self.split.train.input_file_indices, self.split.train.num_instances)
+            config['path'] = os.path.join(self.dataset_dir, train_set)
+            config['set'] = 'train'
+            config['output_path'] = os.path.join(self.output_cfg.path, self.output_cfg.train_data)
+            converter = Mat2Hdf5(config)
+            train_input, train_info = converter.convert(self.split.train.input_file_indices, self.split.train.num_instances)
 
             log.info(f'Processing Start with {num_processes} workers on val set')
             config['path'] = os.path.join(self.dataset_dir, val_set)
@@ -59,12 +59,12 @@ class PreProcess:
             converter = Mat2Hdf5(config)
             test_input, test_info = converter.convert(self.split.test.input_file_indices, self.split.test.num_instances)
 
-            # input_info = pd.concat([train_input, val_input, test_input], keys=['train', 'val', 'test'], names=['set', 'index'])
-            # split_info = pd.concat([train_info, val_info, test_info], keys=['train', 'val', 'test'], names=['set', 'index'])
+            input_info = pd.concat([train_input, val_input, test_input], keys=['train', 'val', 'test'], names=['set', 'index'])
+            split_info = pd.concat([train_info, val_info, test_info], keys=['train', 'val', 'test'], names=['set', 'index'])
 
-            # input_info_path = os.path.join(self.tmp_cfg.path, self.tmp_cfg.input_files)
-            # input_info.to_csv(input_info_path)
+            input_info_path = os.path.join(self.tmp_cfg.path, self.tmp_cfg.input_files)
+            input_info.to_csv(input_info_path)
 
-            # split_info_path = os.path.join(self.output_cfg.path, self.output_cfg.split_info)
-            # split_info.to_csv(split_info_path)
+            split_info_path = os.path.join(self.output_cfg.path, self.output_cfg.split_info)
+            split_info.to_csv(split_info_path)
 

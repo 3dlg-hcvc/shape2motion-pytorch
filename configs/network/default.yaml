@@ -48,7 +48,7 @@ stage1:
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: true
+    with_best: false
 
   postprocess: ${postprocess.stage1}
 
@@ -82,7 +82,7 @@ stage2:
     input_data: path
     inference_model: path
     batch_size: 16
-    with_best: true
+    with_best: false
   
   model:
     pretrained_module: ["backbone", "motion_feat", "simmat_feat"]
@@ -120,6 +120,6 @@ stage3:
     input_data: path
     inference_model: path
     batch_size: 8
-    with_best: true
+    with_best: false
 
   postprocess: ${postprocess.stage3}

@@ -23,7 +23,7 @@ stage2:
   debug: "${postprocess.debug}"
   num_workers: "${postprocess.num_workers}"
 
-  top_k_score_threshold: 10
+  top_k_score_threshold: 1
   move_angle_params: [30, 60, 90]
   move_trans_params: [0.05, 0.1, 0.15]
 
@@ -35,6 +35,6 @@ nms:
   debug: "${postprocess.debug}"
   num_workers: "${postprocess.num_workers}"
 
-  overlap_threshold: 0.5
+  overlap_threshold: 0.9
   score_threshold: 0.8
   angle_threshold: 45
