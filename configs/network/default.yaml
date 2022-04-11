@@ -81,7 +81,7 @@ stage2:
     split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 32
+    batch_size: 16
     with_best: false
   
   model:

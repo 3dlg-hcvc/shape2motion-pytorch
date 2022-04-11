@@ -13,8 +13,6 @@ from tools.utils import io
 from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
-import pdb
-
 log = logging.getLogger('post_stage2')
 
 class PostStage2Impl:
@@ -139,12 +137,13 @@ class PostStage2:
 
             tmp_data['input_pts'] = input_pts[b]
             tmp_data['pred_part_proposal'] = part_proposal[b]
-            tmp_data['gt_part_proposal'] = object_data['gt_part_proposals'][:][proposal_idx]
             tmp_data['pred_motions'] = object_data['pred_motions'][:]
-            tmp_data['gt_motion'] = object_data['gt_motions'][:][proposal_idx]
-
             tmp_data['pred_motion_scores'] = pred_motion_scores[b]
+            
+            tmp_data['gt_motion'] = object_data['gt_motions'][:][proposal_idx]
+            tmp_data['gt_part_proposal'] = object_data['gt_part_proposals'][:][proposal_idx]
             tmp_data['gt_motion_scores'] = gt_motion_scores[b]
+
             tmp_data['anchor_mask'] = anchor_mask[b].astype(bool)
             tmp_data['data_set'] = self.data_set
             stage2_data.append(tmp_data)

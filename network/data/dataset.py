@@ -39,27 +39,14 @@ class Shape2MotionDataset(Dataset):
         if self.stage == Stage.stage1 or self.stage == Stage.stage3:
             instance_data = self.h5_data[instance_name]
             input_pts = torch.tensor(instance_data['input_pts'][:], dtype=torch.float32)
-
             gt_dict = {}
-            filter_input_list = ['input_pts', 'joint_all_directions', 'gt_joints', 'gt_proposals']
+            filter_input_list = ['input_pts', 'joint_all_directions', 'gt_joints', 'gt_proposals', 'pred_motion_scores', 'good_motion']
             for k, v in instance_data.items():
                 if k in filter_input_list:
                         continue
                 else:
                     gt_dict[k] = torch.tensor(v[:], dtype=torch.float32)
         elif self.stage == Stage.stage2:
-            components = instance_name.split('_')
-            object_instance_name = '_'.join(components[:-1])
-            proposal_idx = int(components[-1])
-
-            object_data = self.h5_data[object_instance_name]
-            input_pts = torch.tensor(object_data['input_pts'][:], dtype=torch.float32)
-            gt_dict = {
-                'part_proposal': torch.tensor(object_data['pred_part_proposals'][:][proposal_idx], dtype=torch.float32),
-                'anchor_mask': torch.tensor(object_data['pred_anchor_mask'][:], dtype=torch.float32),
-                'motion_scores': torch.tensor(object_data['motion_scores'][:][proposal_idx], dtype=torch.float32)
-            }
-        elif self.stage == Stage.stage3:
             components = instance_name.split('_')
             object_instance_name = '_'.join(components[:-1])
             proposal_idx = int(components[-1])
