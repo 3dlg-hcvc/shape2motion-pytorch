@@ -50,6 +50,7 @@ class Mat2Hdf5Impl:
                 gt_joints = instance_data['dof_matrix'][0,0]
                 gt_proposals = instance_data['proposal'][0,0]
                 simmat = instance_data['similar_matrix'][0,0]
+                simmat_full = simmat + np.transpose(simmat)
 
                 if self.set == 'train':
                     object_id = str(i)
@@ -72,8 +73,11 @@ class Mat2Hdf5Impl:
                 h5instance.create_dataset('joint_all_directions', shape=joint_all_directions.shape, data=joint_all_directions, compression='gzip')
                 h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints, compression='gzip')
                 h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals, compression='gzip')
-                h5instance.create_dataset('simmat', shape=simmat.shape, data=simmat, compression='gzip')
+                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full, compression='gzip')
                 pbar.update(1)
+
+                # viz = Visualizer()
+                # viz.view_stage1_input(h5instance)
             
         h5file.close()
         data_info = pd.concat(data_info_list, ignore_index=True)

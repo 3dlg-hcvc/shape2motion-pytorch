@@ -15,8 +15,8 @@ stage1:
   top_score_threshold: 0.4
   move_angle_param: "np.pi"
   move_trans_param: 0.5
-  overlap_threshold: 0.9
-  confidence_threshold: 0.5
+  overlap_threshold: 0.8
+  confidence_threshold: 0.3
   min_points_threshold: 20
 
 stage2:
@@ -36,5 +36,5 @@ nms:
   num_workers: "${postprocess.num_workers}"
 
   overlap_threshold: 0.8
-  score_threshold: 0.7
+  score_threshold: 0.8
   angle_threshold: 45

@@ -325,7 +325,7 @@ class Shape2Motion(nn.Module):
             )
 
             # if self.epsilon is None:
-            self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
+            self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-9
             self.epsilon = self.epsilon.to(self.device)
             confidence_loss = loss.compute_confidence_loss(
                 pred['confidence'],
@@ -354,7 +354,7 @@ class Shape2Motion(nn.Module):
             pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
             if self.epsilon is None:
-                self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
+                self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-9
                 self.epsilon = self.epsilon.to(self.device)
             motion_scores_loss = loss.compute_motion_scores_loss(
                 pred_motion_scores,
@@ -368,7 +368,7 @@ class Shape2Motion(nn.Module):
             }
         elif self.stage == Stage.stage3:
             if self.epsilon is None:
-                self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
+                self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-9
                 self.epsilon = self.epsilon.to(self.device)
             
 

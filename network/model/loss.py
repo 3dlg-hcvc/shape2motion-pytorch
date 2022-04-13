@@ -36,7 +36,7 @@ def compute_joint_type_loss(pred_joint_type, gt_joint_type, mask):
     return joint_type_loss, joint_type_accuracy
 
 def compute_simmat_loss(pred_simmat, gt_simmat, neg_simmat, threshold):
-    pos = pred_simmat * (gt_simmat + gt_simmat.transpose(1, 2))
+    pos = pred_simmat * gt_simmat
     neg = torch.clamp(threshold - pred_simmat, min=0) * neg_simmat
     simmat_loss = torch.mean(pos + neg)
     return simmat_loss
