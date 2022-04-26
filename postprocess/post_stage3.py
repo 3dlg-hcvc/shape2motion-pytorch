@@ -42,6 +42,7 @@ class PostStage3:
         pred_motion_regression = pred['motion_regression'].detach().cpu().numpy()
 
         gt_part_proposal = gt['part_proposal'].detach().cpu().numpy()
+        gt_moved_pcds = gt['moved_pcds'].detach().cpu().numpy()
     
         batch_size = pred_part_proposal.shape[0]
 
@@ -57,6 +58,7 @@ class PostStage3:
 
             tmp_gt_part_proposal = gt_part_proposal[b]
             tmp_input_pts = input_pts[b]
+            tmp_gt_moved_pcds = gt_moved_pcds[b]
             if self.debug:
                 gt_cfg = {}
                 gt_cfg['part_proposal'] = tmp_gt_part_proposal
@@ -68,6 +70,10 @@ class PostStage3:
 
                 viz = Visualizer(tmp_input_pts[:, :3])
                 viz.view_stage3_output(gt_cfg, pred_cfg)
+                for i in range(tmp_gt_moved_pcds.shape[0]):
+                    viz = Visualizer(tmp_gt_moved_pcds[i, :, :3])
+                    viz.view_stage3_output(gt_cfg, pred_cfg)
+                    
 
         
             h5instance = self.output_h5.require_group(instance_name)

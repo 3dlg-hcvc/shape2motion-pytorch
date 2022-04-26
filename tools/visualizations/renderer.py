@@ -53,7 +53,7 @@ class Renderer:
         self.caption = caption
 
     @staticmethod
-    def rgba_by_index(index, cmap_name='Set1', alpha=1.0):
+    def rgba_by_index(index, cmap_name='tab20', alpha=1.0):
         if index > 8:
             index = index % 9
         rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
@@ -61,7 +61,7 @@ class Renderer:
         return rgba
 
     @staticmethod
-    def colors_from_mask(mask, empty_first=False):
+    def colors_from_mask(mask, empty_first=True):
         unique_val = np.sort(np.unique(mask))
         colors = np.empty([mask.shape[0], 4])
         for i, val in enumerate(unique_val):
@@ -200,7 +200,7 @@ class Renderer:
 
         forward = camera_pos - look_at_pos
         forward /= np.linalg.norm(forward)
-        world_up = np.array([0, 0, 1])
+        world_up = np.array([0, 1, 0])
         right = np.cross(world_up, forward)
         up = np.cross(forward, right)
 
@@ -257,3 +257,4 @@ class Renderer:
                 mesh = self.trimesh
         io.ensure_dir_exists(os.path.dirname(mesh_path))
         mesh.export(mesh_path)
+

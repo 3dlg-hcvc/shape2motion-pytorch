@@ -62,7 +62,7 @@ class Shape2MotionTrainer:
             self.postprocess = PostStage3(self.cfg.postprocess)
 
     def build_model(self):
-        model = Shape2Motion(self.stage, self.device, self.cfg.num_points)
+        model = Shape2Motion(self.stage, self.device, self.cfg.num_points, self.cfg.num_channels)
         return model
 
     def init_data_loader(self, eval_only):
@@ -320,7 +320,8 @@ class Shape2MotionTrainer:
 
         # Save the prediction results into hdf5
         data_sets = ['train', 'test']
-        # data_sets = ['test']
+        # if self.cfg.eval_only:
+        #     data_sets = ['test']
         for data_set in data_sets:
             if data_set == 'train':
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)

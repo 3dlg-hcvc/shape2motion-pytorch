@@ -8,6 +8,7 @@ device: "cuda:0"
 eval_only: false
 random_seed: 1
 num_points: 4096
+num_channels: 6
 
 test_split: "val"
 
@@ -21,6 +22,7 @@ stage1:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
 
   train:
     continuous: false
@@ -29,7 +31,7 @@ stage1:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 500
     lr: 0.001
     batch_size: 8
 
@@ -62,6 +64,7 @@ stage2:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
 
   train:
     continuous: false
@@ -70,9 +73,9 @@ stage2:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 200
     lr: 0.001
-    batch_size: 32
+    batch_size: 16
 
     loss_weight:
       motion_scores_loss: 1.0
@@ -99,6 +102,7 @@ stage3:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
 
   train:
     continuous: false
@@ -107,7 +111,7 @@ stage3:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 200
+    max_epochs: 500
     lr: 0.001
     batch_size: 12
 

@@ -9,14 +9,14 @@ from tools.utils.constant import Stage
 from time import time
 
 class Shape2Motion(nn.Module):
-    def __init__(self, stage, device, num_points):
+    def __init__(self, stage, device, num_points, num_channels):
         super().__init__()
         self.stage = Stage[stage] if isinstance(stage, str) else stage
         self.device = device
         self.epsilon = None
 
         # Define the shared PN++
-        self.backbone = PointNet2()
+        self.backbone = PointNet2(num_channels)
 
         if self.stage == Stage.stage2:
             for param in self.backbone.parameters():
@@ -133,7 +133,7 @@ class Shape2Motion(nn.Module):
             self.motion_score_layer = nn.Conv1d(256, 1, kernel_size=1, padding=0)
 
         elif self.stage == Stage.stage3:
-            self.dynamic_backbone = PointNet2()
+            self.dynamic_backbone = PointNet2(num_channels)
 
             # static branch
             self.static_feat = nn.Sequential(
@@ -353,9 +353,8 @@ class Shape2Motion(nn.Module):
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
             pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
-            if self.epsilon is None:
-                self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-9
-                self.epsilon = self.epsilon.to(self.device)
+            self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-9
+            self.epsilon = self.epsilon.to(self.device)
             motion_scores_loss = loss.compute_motion_scores_loss(
                 pred_motion_scores,
                 gt_motion_scores,
@@ -367,9 +366,8 @@ class Shape2Motion(nn.Module):
                 'motion_scores_loss': motion_scores_loss,
             }
         elif self.stage == Stage.stage3:
-            if self.epsilon is None:
-                self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-9
-                self.epsilon = self.epsilon.to(self.device)
+            self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-9
+            self.epsilon = self.epsilon.to(self.device)
             
 
             part_proposal_loss, part_proposal_accuracy, iou = loss.compute_part_proposal_loss(

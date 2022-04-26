@@ -4,6 +4,8 @@ debug: "${debug}"
 num_workers: "${num_workers}"
 run: false
 
+num_points: 4096
+
 split:
   train_percent: 0.6
   split_seed: 1

@@ -117,6 +117,7 @@ class PostStage1Impl:
         pred_joint_direction_reg = data.pred_joint_direction_reg
         pred_joint_origin_reg = data.pred_joint_origin_reg
         pred_simmat = data.pred_simmat
+        pred_confidences = data.pred_confidence.flatten()
 
         joint_all_directions = data.joint_all_directions
         gt_proposals = data.gt_proposals
@@ -154,7 +155,8 @@ class PostStage1Impl:
         # process similarity matrix
         s_mat = np.zeros_like(pred_simmat)
         s_mat[pred_simmat < self.simmat_threshold] = 1
-        pred_part_proposals = np.unique(s_mat, axis=0)
+        pred_part_proposals, proposal_indices = np.unique(s_mat, return_index=True, axis=0)
+        pred_confidences = pred_confidences[proposal_indices]
         # discard base part proposals
         gt_part_proposals = gt_proposals[1:, :]
         scores = self.compute_part_proposal_score(gt_part_proposals, pred_part_proposals)
@@ -162,6 +164,7 @@ class PostStage1Impl:
         gt_score_max = scores[gt_score_idx, np.arange(scores.shape[1])]
         # filter low scores
         pred_part_proposals = pred_part_proposals[gt_score_max > self.part_proposal_threshold]
+        pred_confidences = pred_confidences[gt_score_max > self.part_proposal_threshold]
         gt_score_idx = gt_score_idx[gt_score_max > self.part_proposal_threshold]
         gt_score_max = gt_score_max[gt_score_max > self.part_proposal_threshold]
 
@@ -189,6 +192,7 @@ class PostStage1Impl:
         part_proposal_idx = np.concatenate(part_proposal_idx)
         gt_score_idx = gt_score_idx[part_proposal_idx]
         pred_part_proposals = pred_part_proposals[part_proposal_idx, :]
+        pred_confidences = pred_confidences[part_proposal_idx]
         gt_move_pts_list = self.move_pts_with_joints(input_xyz, gt_joints[:, :3], gt_joints[:, 3:6], gt_joints[:, 6])
         pred_move_pts_list = self.move_pts_with_joints(input_xyz, pred_joint_origin, pred_joint_direction, pred_joint_type)
 
@@ -217,6 +221,7 @@ class PostStage1Impl:
         output_data['motion_scores'] = motion_scores
         output_data['pred_anchor_mask'] = pred_anchor_mask
         output_data['pred_part_proposals'] = pred_part_proposals
+        output_data['pred_confidences'] = pred_confidences
         output_data['pred_motions'] = pred_motions
         output_data['gt_part_proposals'] = gt_part_proposals
         output_data['gt_motions'] = gt_motions
@@ -283,6 +288,7 @@ class PostStage1Impl:
 
         part_pick = self.nms(pred_part_proposals, pred_confidences)
         pred_part_proposals = pred_part_proposals[part_pick, :]
+        pred_confidences = pred_confidences[part_pick]
 
         num_points = input_xyz.shape[0]
         # stage1 predicted results and ground truth
@@ -309,6 +315,7 @@ class PostStage1Impl:
         output_data['motion_scores'] = motion_scores
         output_data['pred_anchor_mask'] = pred_anchor_mask
         output_data['pred_part_proposals'] = pred_part_proposals
+        output_data['pred_confidences'] = pred_confidences
         output_data['pred_motions'] = pred_motions
         output_data['gt_part_proposals'] = gt_part_proposals
         output_data['gt_motions'] = gt_motions
@@ -325,7 +332,12 @@ class PostStage1Impl:
             this_mask = np.tile(masks[i], (len(I[:last-1]), 1))
 
             inter = np.logical_and(this_mask, masks[I[:last-1]])
-            o = inter / (np.logical_or(this_mask, masks[I[:last-1]]) + 1.0e-9)
+            inter =  np.sum(inter, axis=1)
+
+            outer = np.logical_or(this_mask, masks[I[:last-1]])
+            outer =  np.sum(outer, axis=1)
+            o = inter / (outer + 1.0e-9)
+            
             I = np.delete(I, np.concatenate(([last-1], np.where(o > self.overlap_threshold)[0])))
 
         return pick
@@ -414,6 +426,7 @@ class PostStage1:
             input_pts = output_data['input_pts']
             pred_anchor_mask = output_data['pred_anchor_mask']
             pred_part_proposals = output_data['pred_part_proposals']
+            pred_confidences = output_data['pred_confidences']
             pred_motions = output_data['pred_motions']
             motion_scores = output_data['motion_scores']
             gt_part_proposals = output_data['gt_part_proposals']
@@ -423,6 +436,7 @@ class PostStage1:
             h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
             h5instance.create_dataset('pred_anchor_mask', shape=pred_anchor_mask.shape, data=pred_anchor_mask, compression='gzip')
             h5instance.create_dataset('pred_part_proposals', shape=pred_part_proposals.shape, data=pred_part_proposals, compression='gzip')
+            h5instance.create_dataset('pred_confidences', shape=pred_confidences.shape, data=pred_confidences, compression='gzip')
             h5instance.create_dataset('pred_motions', shape=pred_motions.shape, data=pred_motions, compression='gzip')
             h5instance.create_dataset('motion_scores', shape=motion_scores.shape, data=motion_scores, compression='gzip')
             h5instance.create_dataset('gt_part_proposals', shape=gt_part_proposals.shape, data=gt_part_proposals, compression='gzip')

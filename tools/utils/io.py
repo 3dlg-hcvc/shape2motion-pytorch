@@ -79,7 +79,21 @@ def get_file_list(path, ext='', join_path=False):
                 file_list.append(os.path.join(path, filename))
             else:
                 file_list.append(filename)
+    file_list = sorted_alphanum(file_list)
     return file_list
+
+def get_folder_list(path, join_path=False):
+    if not os.path.exists(path):
+        raise OSError('Path {} not exist!'.format(path))
+
+    folder_list = []
+    for foldername in os.listdir(path):
+        if join_path:
+            folder_list.append(os.path.join(path, foldername))
+        else:
+            folder_list.append(foldername)
+    folder_list = sorted_alphanum(folder_list)
+    return folder_list
 
 
 def sorted_alphanum(path_list, return_indices=False):

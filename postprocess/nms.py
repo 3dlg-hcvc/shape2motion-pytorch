@@ -55,7 +55,7 @@ class NMS:
         object2instance_names= {}
         for object_name in tqdm(stage1_output.keys()):
             instance_names = []
-            for instance_name in stage3_output.keys():
+            for instance_name in stage2_output.keys():
                 components = instance_name.split('_')
                 object_instance_name = '_'.join(components[:-1])
                 if object_instance_name == object_name:
@@ -63,6 +63,9 @@ class NMS:
             object2instance_names[object_name] = instance_names
 
         for object_name in tqdm(stage1_output.keys()):
+            # if object_name.split('_')[0] != 'car':
+            #     continue
+
             instance_names = object2instance_names[object_name]
             if len(instance_names) == 0:
                 continue
@@ -74,15 +77,24 @@ class NMS:
             
             masks = []
             scores = []
+            scores2 = []
             # pick the part proposals
             for i, instance_name in enumerate(instance_names):
                 stage2_instance = stage2_output[instance_name]
                 pred_motion_scores = stage2_instance['pred_motion_scores'][:]
+                pred_motion_scores = pred_motion_scores[pred_anchor_mask]
                 stage3_instance = stage3_output[instance_name]
+                # pred_part_proposal = stage1_output[object_name]['pred_part_proposals'][:][int(instance_name.split('_')[-1]), :].astype(bool)
+                pred_confidence = stage1_output[object_name]['pred_confidences'][:][int(instance_name.split('_')[-1])]
+                # motion_scores = stage1_output[object_name]['motion_scores'][:][int(instance_name.split('_')[-1]), :]
+
                 pred_part_proposal = stage3_instance['part_proposal'][:].astype(bool)
                 masks.append(pred_part_proposal)
                 score = np.amax(pred_motion_scores)
-                scores.append(score)
+                scores2.append(score)
+                scores.append(pred_confidence)
+                # scores.append(score)
+            
             part_pick = self.nms(np.asarray(masks), np.asarray(scores))
             assert(len(part_pick) > 0), 'No part proposal picked in nms'
 
@@ -92,6 +104,7 @@ class NMS:
                 
                 stage2_instance = stage2_output[instance_name]
                 pred_motion_scores = stage2_instance['pred_motion_scores'][:]
+                # pred_motion_scores = stage1_output[object_name]['motion_scores'][:][int(instance_name.split('_')[-1]), :]
 
                 tmp_pred_motion_scores = pred_motion_scores[pred_anchor_mask]
                 tmp_pred_motion_mask = np.where(tmp_pred_motion_scores > self.cfg.score_threshold)[0]
@@ -119,6 +132,7 @@ class NMS:
                 pred_motion_scores = stage2_instance['pred_motion_scores'][:]
 
                 stage3_instance = stage3_output[instance_name]
+                # pred_part_proposal = stage1_output[object_name]['pred_part_proposals'][:][int(instance_name.split('_')[-1]), :].astype(bool)
                 pred_part_proposal = stage3_instance['part_proposal'][:].astype(bool)
                 motion_regression = stage3_instance['motion_regression'][:]
                 pred_part_proposal_all[pred_part_proposal] = i+1
@@ -167,7 +181,12 @@ class NMS:
             this_mask = np.tile(masks[i], (len(I[:last-1]), 1))
 
             inter = np.logical_and(this_mask, masks[I[:last-1]])
-            o = inter / (np.logical_or(this_mask, masks[I[:last-1]]) + 1.0e-9)
+            inter =  np.sum(inter, axis=1)
+
+            outer = np.logical_or(this_mask, masks[I[:last-1]])
+            outer =  np.sum(outer, axis=1)
+            o = inter / (outer + 1.0e-9)
+
             I = np.delete(I, np.concatenate(([last-1], np.where(o > self.cfg.overlap_threshold)[0])))
 
         return pick

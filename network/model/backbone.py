@@ -35,14 +35,14 @@ class FixedPointNetFPModule(PointnetFPModule):
         return new_features.squeeze(-1)
 
 class PointNet2(nn.Module):
-    def __init__(self):
+    def __init__(self, num_channels):
         super().__init__()
         # Define the shared PN++
         self.sa_module_1 = PointnetSAModule(
             npoint=512,
             radius=0.2,
             nsample=64,
-            mlp=[3, 64, 64, 128],
+            mlp=[num_channels, 64, 64, 128],
             bn=True,
             use_xyz=True,
         )
@@ -67,7 +67,7 @@ class PointNet2(nn.Module):
 
         self.fp_module_1 = FixedPointNetFPModule(mlp=[256+1024, 256, 256], bn=True)
         self.fp_module_2 = FixedPointNetFPModule(mlp=[128+256, 256, 128], bn=True)
-        self.fp_module_3 = FixedPointNetFPModule(mlp=[128+3, 128, 128, 128], bn=True)
+        self.fp_module_3 = FixedPointNetFPModule(mlp=[128+num_channels, 128, 128, 128], bn=True)
 
         self.fc_layer = nn.Sequential(
             nn.Conv1d(128, 128, kernel_size=1, padding=0),
