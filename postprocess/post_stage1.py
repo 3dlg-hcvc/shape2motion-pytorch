@@ -14,8 +14,8 @@ from tools.utils import io
 from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
-
 log = logging.getLogger('post_stage1')
+
 
 class PostStage1Impl:
     def __init__(self, cfg):
@@ -42,7 +42,8 @@ class PostStage1Impl:
             scores[i] = score
         return scores
 
-    def compute_motion_proposal_score(self, gt_score_idx, gt_part_proposals, gt_move_pts_list, pred_move_pts_list, turn_idx, pred_anchor_pts_idx):
+    def compute_motion_proposal_score(self, gt_score_idx, gt_part_proposals, gt_move_pts_list, pred_move_pts_list,
+                                      turn_idx, pred_anchor_pts_idx):
         def compute_motion_proposal_score_step(part_mask, gt_move_part_pts, pred_move_pts_list):
             scores = np.zeros(len(pred_move_pts_list))
             for i, pred_move_pts in enumerate(pred_move_pts_list):
@@ -53,7 +54,7 @@ class PostStage1Impl:
                 mean_dist = np.mean(dist)
                 score = -2.0 / (1.0 + np.exp(-4.0 * mean_dist)) + 2.0
                 scores[i] = score
-            return scores    
+            return scores
 
         num_points = gt_move_pts_list[0].shape[0]
         motion_scores_all = np.zeros((gt_score_idx.shape[0], num_points))
@@ -65,9 +66,9 @@ class PostStage1Impl:
             motion_scores = np.zeros(num_points)
             motion_scores[pred_anchor_pts_idx] = scores_step
 
-            have_turn = np.where(turn_idx == gt_idx+1)[0].size > 0
-            if have_turn and len(gt_move_pts_list) > gt_idx+1:
-                gt_move_pts_2 = gt_move_pts_list[gt_idx+1]
+            have_turn = np.where(turn_idx == gt_idx + 1)[0].size > 0
+            if have_turn and len(gt_move_pts_list) > gt_idx + 1:
+                gt_move_pts_2 = gt_move_pts_list[gt_idx + 1]
                 gt_move_part_pts_2 = gt_move_pts_2[part_mask, :]
                 scores_step_2 = compute_motion_proposal_score_step(part_mask, gt_move_part_pts_2, pred_move_pts_list)
                 motion_scores_2 = np.zeros(num_points)
@@ -188,33 +189,37 @@ class PostStage1Impl:
             # no valid part proposal
             log.warning(f'{instance_name} stage 1 prediction failed: bad part proposal')
             return
-        
+
         part_proposal_idx = np.concatenate(part_proposal_idx)
         gt_score_idx = gt_score_idx[part_proposal_idx]
         pred_part_proposals = pred_part_proposals[part_proposal_idx, :]
         pred_confidences = pred_confidences[part_proposal_idx]
         gt_move_pts_list = self.move_pts_with_joints(input_xyz, gt_joints[:, :3], gt_joints[:, 3:6], gt_joints[:, 6])
-        pred_move_pts_list = self.move_pts_with_joints(input_xyz, pred_joint_origin, pred_joint_direction, pred_joint_type)
+        pred_move_pts_list = self.move_pts_with_joints(input_xyz, pred_joint_origin, pred_joint_direction,
+                                                       pred_joint_type)
 
         assert gt_score_idx.shape[0] > 0, 'Zero proposal'
-        
+
         # where the object moves as a whole
         turn_idx = np.where(np.sum(gt_part_proposals, axis=1) == 0)[0]
 
-        motion_scores = self.compute_motion_proposal_score(gt_score_idx, gt_part_proposals, gt_move_pts_list, pred_move_pts_list, turn_idx, pred_anchor_pts_idx)
+        motion_scores = self.compute_motion_proposal_score(gt_score_idx, gt_part_proposals, gt_move_pts_list,
+                                                           pred_move_pts_list, turn_idx, pred_anchor_pts_idx)
 
         num_points = gt_move_pts_list[0].shape[0]
         # stage1 predicted results and ground truth
         pred_anchor_mask = np.zeros(num_points)
         pred_anchor_mask[pred_anchor_pts_idx] = 1
         pred_motions = np.zeros((num_points, 7))
-        pred_motions[pred_anchor_pts_idx, :] = np.concatenate((pred_joint_origin, pred_joint_direction, pred_joint_type.reshape(-1, 1)), axis=1)
+        pred_motions[pred_anchor_pts_idx, :] = np.concatenate(
+            (pred_joint_origin, pred_joint_direction, pred_joint_type.reshape(-1, 1)), axis=1)
         gt_part_proposals = gt_proposals[1:, :]
         gt_part_proposals = gt_part_proposals[gt_score_idx, :]
         gt_motions = gt_joints[gt_score_idx]
 
-        assert gt_part_proposals.shape[0] == pred_part_proposals.shape[0], 'Mismatch in prediction and gt part proposals'
-        
+        assert gt_part_proposals.shape[0] == pred_part_proposals.shape[
+            0], 'Mismatch in prediction and gt part proposals'
+
         output_data = {}
         output_data['instance_name'] = instance_name
         output_data['input_pts'] = input_pts
@@ -296,16 +301,19 @@ class PostStage1Impl:
         pred_anchor_mask[pred_anchor_pts_idx] = 1
 
         pred_motions = np.zeros((num_points, 7))
-        pred_motions[pred_anchor_pts_idx, :] = np.concatenate((pred_joint_origin, pred_joint_direction, pred_joint_type.reshape(-1, 1)), axis=1)
+        pred_motions[pred_anchor_pts_idx, :] = np.concatenate(
+            (pred_joint_origin, pred_joint_direction, pred_joint_type.reshape(-1, 1)), axis=1)
 
         gt_move_pts_list = self.move_pts_with_joints(input_xyz, gt_joints[:, :3], gt_joints[:, 3:6], gt_joints[:, 6])
-        pred_move_pts_list = self.move_pts_with_joints(input_xyz, pred_joint_origin, pred_joint_direction, pred_joint_type)
+        pred_move_pts_list = self.move_pts_with_joints(input_xyz, pred_joint_origin, pred_joint_direction,
+                                                       pred_joint_type)
 
         gt_part_proposals = gt_proposals[1:, :]
         turn_idx = np.where(np.sum(gt_part_proposals, axis=1) == 0)[0]
         scores = self.compute_part_proposal_score(gt_part_proposals, pred_part_proposals)
         gt_score_idx = np.argmax(scores, axis=0)
-        motion_scores = self.compute_motion_proposal_score(gt_score_idx, gt_part_proposals, gt_move_pts_list, pred_move_pts_list, turn_idx, pred_anchor_pts_idx)
+        motion_scores = self.compute_motion_proposal_score(gt_score_idx, gt_part_proposals, gt_move_pts_list,
+                                                           pred_move_pts_list, turn_idx, pred_anchor_pts_idx)
         gt_part_proposals = gt_part_proposals[gt_score_idx, :]
         gt_motions = gt_joints[gt_score_idx]
 
@@ -324,21 +332,21 @@ class PostStage1Impl:
     def nms(self, masks, scores):
         I = np.argsort(scores)
         pick = []
-        while (I.size!=0):
+        while (I.size != 0):
             last = I.size
             i = I[-1]
             pick.append(i)
 
-            this_mask = np.tile(masks[i], (len(I[:last-1]), 1))
+            this_mask = np.tile(masks[i], (len(I[:last - 1]), 1))
 
-            inter = np.logical_and(this_mask, masks[I[:last-1]])
-            inter =  np.sum(inter, axis=1)
+            inter = np.logical_and(this_mask, masks[I[:last - 1]])
+            inter = np.sum(inter, axis=1)
 
-            outer = np.logical_or(this_mask, masks[I[:last-1]])
-            outer =  np.sum(outer, axis=1)
+            outer = np.logical_or(this_mask, masks[I[:last - 1]])
+            outer = np.sum(outer, axis=1)
             o = inter / (outer + 1.0e-9)
-            
-            I = np.delete(I, np.concatenate(([last-1], np.where(o > self.overlap_threshold)[0])))
+
+            I = np.delete(I, np.concatenate(([last - 1], np.where(o > self.overlap_threshold)[0])))
 
         return pick
 
@@ -348,7 +356,6 @@ class PostStage1Impl:
             return self.process_train(idx, data)
         else:
             return self.process_test(idx, data)
-        
 
 
 class PostStage1:
@@ -371,7 +378,7 @@ class PostStage1:
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()
-        
+
         pred_anchor_pts_batch = pred['anchor_pts'].detach().cpu().numpy()
         pred_joint_direction_cat_batch = pred['joint_direction_cat'].detach().cpu().numpy()
         pred_joint_direction_reg_batch = pred['joint_direction_reg'].detach().cpu().numpy()
@@ -410,7 +417,7 @@ class PostStage1:
 
         pool = Pool(processes=self.num_workers)
         proc_impl = PostStage1Impl(self.cfg)
-        jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage1_data)]
+        jobs = [pool.apply_async(proc_impl, args=(i, data,)) for i, data in enumerate(stage1_data)]
         pool.close()
         pool.join()
         batch_output = [job.get() for job in jobs]
@@ -433,14 +440,22 @@ class PostStage1:
             gt_motions = output_data['gt_motions']
 
             h5instance = self.output_h5.require_group(instance_name)
-            h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
-            h5instance.create_dataset('pred_anchor_mask', shape=pred_anchor_mask.shape, data=pred_anchor_mask, compression='gzip')
-            h5instance.create_dataset('pred_part_proposals', shape=pred_part_proposals.shape, data=pred_part_proposals, compression='gzip')
-            h5instance.create_dataset('pred_confidences', shape=pred_confidences.shape, data=pred_confidences, compression='gzip')
-            h5instance.create_dataset('pred_motions', shape=pred_motions.shape, data=pred_motions, compression='gzip')
-            h5instance.create_dataset('motion_scores', shape=motion_scores.shape, data=motion_scores, compression='gzip')
-            h5instance.create_dataset('gt_part_proposals', shape=gt_part_proposals.shape, data=gt_part_proposals, compression='gzip')
-            h5instance.create_dataset('gt_motions', shape=gt_motions.shape, data=gt_motions, compression='gzip')
+            h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
+                                      compression='gzip')
+            h5instance.create_dataset('pred_anchor_mask', shape=pred_anchor_mask.shape,
+                                      data=pred_anchor_mask.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('pred_part_proposals', shape=pred_part_proposals.shape,
+                                      data=pred_part_proposals.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('pred_confidences', shape=pred_confidences.shape,
+                                      data=pred_confidences.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('pred_motions', shape=pred_motions.shape, data=pred_motions.astype(np.float32),
+                                      compression='gzip')
+            h5instance.create_dataset('motion_scores', shape=motion_scores.shape, data=motion_scores.astype(np.float32),
+                                      compression='gzip')
+            h5instance.create_dataset('gt_part_proposals', shape=gt_part_proposals.shape,
+                                      data=gt_part_proposals.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('gt_motions', shape=gt_motions.shape, data=gt_motions.astype(np.float32),
+                                      compression='gzip')
 
             if self.debug:
                 gt_cfg = {}
@@ -457,6 +472,6 @@ class PostStage1:
 
                 viz = Visualizer(input_pts[:, :3])
                 viz.view_stage2_input(gt_cfg, pred_cfg)
-    
+
     def stop(self):
         self.output_h5.close()

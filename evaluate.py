@@ -94,6 +94,7 @@ class Evaluation:
 
         best_matches = []
         print(pred_h5.keys())
+        print(len(pred_h5.keys()))
         for object_name in pred_h5.keys():
             best_match = {
                 'object_name': object_name,
@@ -266,6 +267,7 @@ class Evaluation:
             'part_precision': [],
             'joint_precision': [],
         }
+        names = []
         for best_match in best_matches:
             # if best_match['object_name'].split('_')[0] == 'motor':
             eval_results['iou'] += best_match['iou']
@@ -289,6 +291,10 @@ class Evaluation:
             eval_results['joint_recall'].append(joint_recall)
             eval_results['part_precision'].append(part_precision)
             eval_results['joint_precision'].append(joint_precision)
+            if len(best_match['iou']) > 0 and len(best_match['md']) > 0:
+                names.append(best_match['object_name'])
+        print(names)
+        print(len(names))
 
         for key, val in eval_results.items():
             log.info(f'mean {key}: {np.mean(val)}')
@@ -301,7 +307,7 @@ def main(cfg: DictConfig):
 
     evaluator = Evaluation(cfg)
 
-    data_sets = ['train', cfg.test_split]
+    data_sets = ['train']
     # data_sets = [cfg.test_split]
     for data_set in data_sets:
         if data_set == 'train':
@@ -318,9 +324,10 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     start = time()
-    io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
+    io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
     main()
     end = time()
 
     duration_time = utils.duration_in_hours(end - start)
     log.info(f'Evaluation: Total time duration {duration_time}')
+

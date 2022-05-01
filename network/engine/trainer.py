@@ -42,8 +42,8 @@ class Shape2MotionTrainer:
         self.model.to(device)
         self.log.info(f'Below is the network structure:\n {self.model}')
 
-        self.optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr, betas=(0.9, 0.99)
+        self.optimizer = optim.AdamW(
+            filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr
         )
 
         self.data_path = data_path

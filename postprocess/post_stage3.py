@@ -13,7 +13,6 @@ from tools.utils import io
 from tools.utils.constant import JointType
 from tools.visualizations import Visualizer
 
-
 log = logging.getLogger('post_stage3')
 
 
@@ -37,13 +36,13 @@ class PostStage3:
 
     def process(self, pred, input_pts, gt, id):
         input_pts = input_pts.detach().cpu().numpy()
-        
+
         pred_part_proposal = pred['part_proposal'].detach().cpu().numpy()
         pred_motion_regression = pred['motion_regression'].detach().cpu().numpy()
 
         gt_part_proposal = gt['part_proposal'].detach().cpu().numpy()
         gt_moved_pcds = gt['moved_pcds'].detach().cpu().numpy()
-    
+
         batch_size = pred_part_proposal.shape[0]
 
         # prepare input data for the stage3 postprocessing
@@ -73,12 +72,12 @@ class PostStage3:
                 for i in range(tmp_gt_moved_pcds.shape[0]):
                     viz = Visualizer(tmp_gt_moved_pcds[i, :, :3])
                     viz.view_stage3_output(gt_cfg, pred_cfg)
-                    
 
-        
             h5instance = self.output_h5.require_group(instance_name)
-            h5instance.create_dataset('part_proposal', shape=tmp_pred_part_proposal.shape, data=tmp_pred_part_proposal, compression='gzip')
-            h5instance.create_dataset('motion_regression', shape=tmp_pred_motion_regression.shape, data=tmp_pred_motion_regression, compression='gzip')
-    
+            h5instance.create_dataset('part_proposal', shape=tmp_pred_part_proposal.shape,
+                                      data=tmp_pred_part_proposal.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('motion_regression', shape=tmp_pred_motion_regression.shape,
+                                      data=tmp_pred_motion_regression.astype(np.float32), compression='gzip')
+
     def stop(self):
         self.output_h5.close()

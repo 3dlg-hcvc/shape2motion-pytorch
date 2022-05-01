@@ -131,7 +131,6 @@ class PreProcess:
         h5output = h5py.File(output_file_path, 'w')
         for key in tqdm(h5file.keys()):
             h5instance = h5file[key]
-
             num_parts = h5instance.attrs['numParts']
             pts = h5instance['pts'][:]
             part_semantic_masks = h5instance['part_semantic_masks'][:]
@@ -151,6 +150,8 @@ class PreProcess:
                 part_semantic_masks = part_semantic_masks[point_idx]
                 part_instance_masks = part_instance_masks[point_idx]
 
+            input_pts[:, 6:9] = input_pts[:, 6:9] / 127.5 - 1.0
+
             assert num_parts == np.unique(part_instance_masks).shape[0] - 1
 
             anchor_pts = np.zeros(num_points)
@@ -163,8 +164,11 @@ class PreProcess:
             gt_proposals = np.zeros((num_parts + 1, num_points))
             simmat = np.zeros((num_points, num_points))
 
+            scale = np.linalg.norm(np.amax(input_pts[:, :3], axis=0) - np.amin(input_pts[:, :3], axis=0))
+            input_pts[:, :3] = input_pts[:, :3] / scale
+
             for i in range(num_parts):
-                joint_origin = joint_origins[i, :]
+                joint_origin = joint_origins[i, :] / scale
                 joint_axis = joint_axes[i, :]
 
                 input_xyz = input_pts[:, :3]
@@ -192,23 +196,32 @@ class PreProcess:
             articulation_id = 0
             instance_name = f'{key}_{articulation_id}'
             h5output_inst = h5output.require_group(instance_name)
-            h5output_inst.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
-            h5output_inst.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts, compression='gzip')
-            h5output_inst.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape, data=joint_direction_cat,
-                                    compression='gzip')
-            h5output_inst.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape, data=joint_direction_reg,
-                                    compression='gzip')
-            h5output_inst.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape, data=joint_origin_reg,
-                                    compression='gzip')
-            h5output_inst.create_dataset('joint_type', shape=joint_type.shape, data=joint_type, compression='gzip')
-            h5output_inst.create_dataset('joint_all_directions', shape=joint_all_directions.shape, data=joint_all_directions,
-                                    compression='gzip')
-            h5output_inst.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints, compression='gzip')
-            h5output_inst.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals, compression='gzip')
-            h5output_inst.create_dataset('simmat', shape=simmat.shape, data=simmat, compression='gzip')
+            h5output_inst.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape,
+                                         data=joint_direction_cat.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape,
+                                         data=joint_direction_reg.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape,
+                                         data=joint_origin_reg.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('joint_type', shape=joint_type.shape, data=joint_type.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('joint_all_directions', shape=joint_all_directions.shape,
+                                         data=joint_all_directions.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals.astype(np.float32),
+                                         compression='gzip')
+            h5output_inst.create_dataset('simmat', shape=simmat.shape, data=simmat.astype(np.float32),
+                                         compression='gzip')
 
             if self.debug:
                 viz = Visualizer()
                 viz.view_stage1_input(h5output_inst)
-            break
         h5output.close()

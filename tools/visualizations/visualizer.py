@@ -278,11 +278,11 @@ class Visualizer(Renderer):
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
         gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
-        gt_viewer.show(window_name=f'gt')
+        # gt_viewer.show(window_name=f'gt')
         # gt_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/gt.gif', as_gif=True)
         # io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
         io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt')
-        # gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.jpg', as_gif=False)
+        gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.jpg', as_gif=False)
         # gt_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.ply')
 
         part_proposals = pred_cfg.part_proposals.astype(bool)
@@ -318,10 +318,10 @@ class Visualizer(Renderer):
         for i, joint_type in enumerate(joint_types):
             joint_colors[i] = [0.0, 1.0, 0.0, 0.5]
         pred_viewer.add_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
-        pred_viewer.show(window_name=f'pred')
+        # pred_viewer.show(window_name=f'pred')
         io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred')
         # pred_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.ply')
-        # pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.jpg', as_gif=False)
+        pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.jpg', as_gif=False)
         # pred_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/pred.gif', as_gif=True)
 
 
