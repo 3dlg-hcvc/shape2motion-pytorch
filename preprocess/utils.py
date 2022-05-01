@@ -66,21 +66,21 @@ class Mat2Hdf5Impl:
 
                 instance_name = f'{object_cat}_{object_id}_{articulation_id}'
                 h5instance = h5file.require_group(instance_name)
-                h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
-                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts, compression='gzip')
+                h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.float32), compression='gzip')
                 h5instance.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape,
-                                          data=joint_direction_cat, compression='gzip')
+                                          data=joint_direction_cat.astype(np.float32), compression='gzip')
                 h5instance.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape,
-                                          data=joint_direction_reg, compression='gzip')
-                h5instance.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape, data=joint_origin_reg,
+                                          data=joint_direction_reg.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape, data=joint_origin_reg.astype(np.float32),
                                           compression='gzip')
-                h5instance.create_dataset('joint_type', shape=joint_type.shape, data=joint_type, compression='gzip')
+                h5instance.create_dataset('joint_type', shape=joint_type.shape, data=joint_type.astype(np.float32), compression='gzip')
                 h5instance.create_dataset('joint_all_directions', shape=joint_all_directions.shape,
-                                          data=joint_all_directions, compression='gzip')
-                h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints, compression='gzip')
-                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals,
+                                          data=joint_all_directions.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals.astype(np.float32),
                                           compression='gzip')
-                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full, compression='gzip')
+                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full.astype(np.float32), compression='gzip')
                 pbar.update(1)
 
                 # viz = Visualizer()
@@ -107,16 +107,16 @@ class Mat2Hdf5:
         if len(input_file_indices) > 0:
             files = np.asarray(files)[input_file_indices]
 
-        # pool = Pool(processes=self.num_processes)
+        pool = Pool(processes=self.num_processes)
         proc_impl = Mat2Hdf5Impl(self.cfg)
-        # jobs = [pool.apply_async(proc_impl, args=(i, file,)) for i, file in enumerate(files)]
-        # pool.close()
-        # pool.join()
-        # output_filepath_list = [job.get() for job in jobs]
+        jobs = [pool.apply_async(proc_impl, args=(i, file,)) for i, file in enumerate(files)]
+        pool.close()
+        pool.join()
+        output_filepath_list = [job.get() for job in jobs]
 
-        output_filepath_list = []
-        for i, file in enumerate(files):
-            output_filepath_list.append(proc_impl(i, file))
+        # output_filepath_list = []
+        # for i, file in enumerate(files):
+        #     output_filepath_list.append(proc_impl(i, file))
 
         h5file = h5py.File(self.output_path, 'w')
         data_info_list = []

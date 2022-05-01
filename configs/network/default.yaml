@@ -8,7 +8,7 @@ device: "cuda:0"
 eval_only: false
 random_seed: 1
 num_points: 4096
-num_channels: 6
+num_channels: 3
 
 test_split: "val"
 
@@ -31,7 +31,7 @@ stage1:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 500
+    max_epochs: 100
     lr: 0.001
     batch_size: 8
 

@@ -257,7 +257,7 @@ class Shape2Motion(nn.Module):
                 'motion_scores': pred_motion_scores
             }
         elif self.stage == Stage.stage3:
-            all_feat = torch.cat((dynamic_features, static_features), axis=1)
+            all_feat = torch.cat((static_features, dynamic_features), axis=1)
             all_feat, _ = torch.max(all_feat, axis=1)
             
             proposal_feat = self.proposal_feat(all_feat)
@@ -353,7 +353,7 @@ class Shape2Motion(nn.Module):
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
             pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
-            self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-9
+            self.epsilon = torch.ones(anchor_mask.size(dim=0)).float() * 1e-9
             self.epsilon = self.epsilon.to(self.device)
             motion_scores_loss = loss.compute_motion_scores_loss(
                 pred_motion_scores,
@@ -366,7 +366,7 @@ class Shape2Motion(nn.Module):
                 'motion_scores_loss': motion_scores_loss,
             }
         elif self.stage == Stage.stage3:
-            self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-9
+            self.epsilon = torch.ones(gt['part_proposal'].size(dim=0)).float() * 1e-9
             self.epsilon = self.epsilon.to(self.device)
             
 

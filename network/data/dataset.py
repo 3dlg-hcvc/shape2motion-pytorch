@@ -55,7 +55,7 @@ class Shape2MotionDataset(Dataset):
             proposal_idx = int(components[-1])
 
             object_data = self.h5_data[object_instance_name]
-            input_pts = torch.from_numpy(object_data['input_pts'][:].astype(np.float32))
+            input_pts = torch.from_numpy(object_data['input_pts'][:])
             gt_dict = {
                 'part_proposal': torch.from_numpy(object_data['pred_part_proposals'][:][proposal_idx]),
                 'anchor_mask': torch.from_numpy(object_data['pred_anchor_mask'][:]),
