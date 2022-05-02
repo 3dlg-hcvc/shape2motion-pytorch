@@ -42,7 +42,7 @@ class Shape2MotionTrainer:
         self.model.to(device)
         self.log.info(f'Below is the network structure:\n {self.model}')
 
-        self.optimizer = optim.AdamW(
+        self.optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr
         )
 

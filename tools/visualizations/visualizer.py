@@ -29,7 +29,7 @@ class Visualizer(Renderer):
         joint_type = instance_data['joint_type'][:]
         joint_all_directions = instance_data['joint_all_directions'][:]
         gt_joints = instance_data['gt_joints'][:]
-        gt_proposals = instance_data['gt_proposals'][:]
+        gt_proposals = instance_data['gt_proposals'][:].astype(np.float32)
         simmat = instance_data['simmat'][:]
 
         mask = np.zeros_like(gt_proposals)
@@ -177,6 +177,22 @@ class Visualizer(Renderer):
         pred_viewer.add_trimesh_arrows(pred_joint_origins[::joint_downsample], pred_joint_directions[::joint_downsample], colors=pred_joint_colors[::joint_downsample], radius=0.005, length=0.2)
         pred_viewer.show(window_name=f'pred')
 
+    def view_stage3_input(self, cfg):
+        input_pts = cfg['input_pts']
+        part_proposal = cfg['part_proposal']
+        good_motion = cfg['motions']
+        anchor_mask = cfg['anchor_mask']
+
+        for i in range(3):
+            gt_viewer = Renderer(vertices=input_pts[i, :, :3], mask=part_proposal.astype(int))
+            gt_joint_origin = good_motion[:3]
+            gt_joint_direction = good_motion[3:6]
+            gt_joint_direction = gt_joint_direction / LA.norm(gt_joint_direction)
+            gt_joint_type = good_motion[6]
+
+            gt_viewer.add_trimesh_arrows([gt_joint_origin], [gt_joint_direction], radius=0.005, length=0.2)
+            gt_viewer.show(window_name=f'mv_pcd_{i}')
+
     def view_stage3_output(self, gt_cfg, pred_cfg):
         # gt
         # part_proposal
@@ -278,11 +294,11 @@ class Visualizer(Renderer):
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
         gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
-        # gt_viewer.show(window_name=f'gt')
+        gt_viewer.show(window_name=f'gt')
         # gt_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/gt.gif', as_gif=True)
         # io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
         io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt')
-        gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.jpg', as_gif=False)
+        # gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.jpg', as_gif=False)
         # gt_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.ply')
 
         part_proposals = pred_cfg.part_proposals.astype(bool)
@@ -318,10 +334,10 @@ class Visualizer(Renderer):
         for i, joint_type in enumerate(joint_types):
             joint_colors[i] = [0.0, 1.0, 0.0, 0.5]
         pred_viewer.add_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
-        # pred_viewer.show(window_name=f'pred')
+        pred_viewer.show(window_name=f'pred')
         io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred')
         # pred_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.ply')
-        pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.jpg', as_gif=False)
+        # pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.jpg', as_gif=False)
         # pred_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/pred.gif', as_gif=True)
 
 

@@ -443,9 +443,9 @@ class PostStage1:
             h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
                                       compression='gzip')
             h5instance.create_dataset('pred_anchor_mask', shape=pred_anchor_mask.shape,
-                                      data=pred_anchor_mask.astype(np.float32), compression='gzip')
+                                      data=pred_anchor_mask.astype(np.bool), compression='gzip')
             h5instance.create_dataset('pred_part_proposals', shape=pred_part_proposals.shape,
-                                      data=pred_part_proposals.astype(np.float32), compression='gzip')
+                                      data=pred_part_proposals.astype(np.bool), compression='gzip')
             h5instance.create_dataset('pred_confidences', shape=pred_confidences.shape,
                                       data=pred_confidences.astype(np.float32), compression='gzip')
             h5instance.create_dataset('pred_motions', shape=pred_motions.shape, data=pred_motions.astype(np.float32),
@@ -453,7 +453,7 @@ class PostStage1:
             h5instance.create_dataset('motion_scores', shape=motion_scores.shape, data=motion_scores.astype(np.float32),
                                       compression='gzip')
             h5instance.create_dataset('gt_part_proposals', shape=gt_part_proposals.shape,
-                                      data=gt_part_proposals.astype(np.float32), compression='gzip')
+                                      data=gt_part_proposals.astype(np.bool), compression='gzip')
             h5instance.create_dataset('gt_motions', shape=gt_motions.shape, data=gt_motions.astype(np.float32),
                                       compression='gzip')
 

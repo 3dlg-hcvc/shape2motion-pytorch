@@ -78,7 +78,7 @@ class PostStage2Impl:
 
         assert len(self.move_angle_params) == len(
             self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
-        moved_pcds = np.zeros((3, num_points, 9))
+        moved_pcds = np.zeros((3, num_points, 6))
         for i in range(len(self.move_angle_params)):
             move_angle = float(self.move_angle_params[i]) / 180.0 * np.pi
             diag_length = LA.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
@@ -193,10 +193,21 @@ class PostStage2:
             pred_motion_scores = output_data['pred_motion_scores']
             anchor_mask = output_data['anchor_mask']
 
+            # if self.debug:
+            #     gt_cfg = {}
+            #     gt_cfg['input_pts'] = moved_pcds
+            #     gt_cfg['part_proposal'] = part_proposal
+            #     gt_cfg['motions'] = good_motion
+            #     gt_cfg['scores'] = pred_motion_scores
+            #     gt_cfg['anchor_mask'] = anchor_mask
+            #
+            #     viz = Visualizer()
+            #     viz.view_stage3_input(gt_cfg)
+
             h5instance = self.output_h5.require_group(instance_name)
             h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
                                       compression='gzip')
-            h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal.astype(np.float32),
+            h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal.astype(np.bool),
                                       compression='gzip')
             h5instance.create_dataset('motion_regression', shape=motion_regression.shape,
                                       data=motion_regression.astype(np.float32), compression='gzip')
@@ -204,7 +215,7 @@ class PostStage2:
                                       compression='gzip')
             h5instance.create_dataset('pred_motion_scores', shape=pred_motion_scores.shape,
                                       data=pred_motion_scores.astype(np.float32), compression='gzip')
-            h5instance.create_dataset('anchor_mask', shape=anchor_mask.shape, data=anchor_mask.astype(np.float32),
+            h5instance.create_dataset('anchor_mask', shape=anchor_mask.shape, data=anchor_mask.astype(np.bool),
                                       compression='gzip')
             h5instance.create_dataset('good_motion', shape=good_motion.shape, data=good_motion.astype(np.float32),
                                       compression='gzip')

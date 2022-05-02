@@ -67,7 +67,7 @@ class Mat2Hdf5Impl:
                 instance_name = f'{object_cat}_{object_id}_{articulation_id}'
                 h5instance = h5file.require_group(instance_name)
                 h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32), compression='gzip')
-                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.bool), compression='gzip')
                 h5instance.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape,
                                           data=joint_direction_cat.astype(np.float32), compression='gzip')
                 h5instance.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape,
@@ -78,9 +78,9 @@ class Mat2Hdf5Impl:
                 h5instance.create_dataset('joint_all_directions', shape=joint_all_directions.shape,
                                           data=joint_all_directions.astype(np.float32), compression='gzip')
                 h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints.astype(np.float32), compression='gzip')
-                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals.astype(np.float32),
+                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals.astype(np.bool),
                                           compression='gzip')
-                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full.astype(np.bool), compression='gzip')
                 pbar.update(1)
 
                 # viz = Visualizer()

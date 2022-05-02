@@ -8,11 +8,11 @@ split:
   train_percent: 0.6
   split_seed: 1
   train:
-    input_file_indices: [0]
+    input_file_indices: [2]
     num_instances: 1
   val:
-    input_file_indices: [0]
+    input_file_indices: [2]
     num_instances: 1
   test:
-    input_file_indices: [0]
+    input_file_indices: [2]
     num_instances: 1

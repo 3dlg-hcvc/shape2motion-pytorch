@@ -75,7 +75,7 @@ class PostStage3:
 
             h5instance = self.output_h5.require_group(instance_name)
             h5instance.create_dataset('part_proposal', shape=tmp_pred_part_proposal.shape,
-                                      data=tmp_pred_part_proposal.astype(np.float32), compression='gzip')
+                                      data=tmp_pred_part_proposal.astype(np.bool), compression='gzip')
             h5instance.create_dataset('motion_regression', shape=tmp_pred_motion_regression.shape,
                                       data=tmp_pred_motion_regression.astype(np.float32), compression='gzip')
 
