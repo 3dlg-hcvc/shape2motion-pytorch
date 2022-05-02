@@ -30,10 +30,12 @@ class Renderer:
         self.point_cloud_list = []
         self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
+        self.vertex_normals = None
+        self.caption = None
+        self.point_size = 2
+
         if vertices is not None:
             self.add_geometry(vertices, faces, colors, normals, mask)
-        self.caption = None
-        self.point_size = 10
 
     head_body_ratio = 1.0 / 4
 
@@ -48,12 +50,13 @@ class Renderer:
         self.point_cloud_list = []
         self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
+        self.vertex_normals = None
 
     def add_caption(self, caption):
         self.caption = caption
 
     @staticmethod
-    def rgba_by_index(index, cmap_name='tab20', alpha=1.0):
+    def rgba_by_index(index, cmap_name='Set1', alpha=1.0):
         if index > 8:
             index = index % 9
         rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
@@ -68,7 +71,7 @@ class Renderer:
             if empty_first and i == 0:
                 rgba = [0.5, 0.5, 0.5, 0.5]
             else:
-                rgba = Renderer.rgba_by_index(i)
+                rgba = Renderer.rgba_by_index(val)
             colors[mask == val] = rgba
         return colors
 
@@ -78,12 +81,14 @@ class Renderer:
 
     def add_geometry(self, vertices, faces=None, colors=None, normals=None, mask=None):
         if colors is None and mask is not None:
-            colors = Renderer.colors_from_mask(mask)
+            colors = Renderer.colors_from_mask(mask, empty_first=True)
         if faces is not None:
-            geo = trimesh.base.Trimesh(vertices, faces=faces, vertex_colors=colors)
+            geo = trimesh.base.Trimesh(vertices, faces=faces, vertex_colors=colors, vertex_normals=normals)
             self.add_trimesh(geo)
         else:
-            geo = trimesh.points.PointCloud(vertices, vertex_colors=colors, vertex_normals=normals)
+            geo = trimesh.points.PointCloud(vertices, vertex_colors=colors)
+            self.vertex_normals = normals if self.vertex_normals is None else np.concatenate(
+                (self.vertex_normals, normals), axis=0)
             self.add_point_cloud(geo)
 
     def add_trimesh(self, mesh):
@@ -107,7 +112,7 @@ class Renderer:
     @staticmethod
     def draw_arrow(color=None, radius=0.01, length=0.5):
         if color is None:
-            color = Renderer.rgba_by_index(0)
+            color = [1.0, 0.0, 0.0, 1.0]
         head_length = length * Renderer.head_body_ratio
         body_length = length - head_length
         head_transformation = np.eye(4)
@@ -168,7 +173,11 @@ class Renderer:
             log.debug('add point cloud to scene')
             rgb_color = self.point_cloud.colors.astype(float) / 255.0
             rgb_color[:, :3] = rgb_color[:, :3] * rgb_color[:, 3].reshape(-1, 1)
-            point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
+            if self.vertex_normals is None:
+                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
+            else:
+                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color,
+                                                        normals=self.vertex_normals)
             self.scene.add(point_cloud)
 
     def show(self, window_size=None, window_name='Default Renderer', non_block=False):
@@ -176,16 +185,18 @@ class Renderer:
         if window_size is None:
             window_size = [800, 600]
         if non_block:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
-                            caption=self.caption, run_in_thread=True)
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
+                                point_size=self.point_size,
+                                caption=self.caption, run_in_thread=True)
 
             time.sleep(1.0)
             v.close_external()
             while v.is_active:
                 pass
         else:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
-                            caption=self.caption)
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
+                                point_size=self.point_size,
+                                caption=self.caption)
 
     def _compute_initial_camera_pose(self, angle=0):
         centroid = self.scene.centroid
@@ -196,7 +207,7 @@ class Renderer:
         look_at_pos = centroid
         h_fov = np.pi / 6.0
         dist = scale / (1 * np.tan(h_fov))
-        camera_pos = dist * np.array([np.cos(angle), -np.sin(angle), 1.0]) + centroid
+        camera_pos = dist * np.array([np.cos(angle), np.sin(angle), 1.0]) + centroid
 
         forward = camera_pos - look_at_pos
         forward /= np.linalg.norm(forward)
@@ -222,11 +233,11 @@ class Renderer:
             z_near = DEFAULT_Z_NEAR
         else:
             z_near = min(self.scene.scale / 10.0, DEFAULT_Z_NEAR)
-        cam = pyrender.PerspectiveCamera(yfov=np.pi / 4.0, znear=z_near, zfar=z_far)
+        cam = pyrender.PerspectiveCamera(yfov=np.pi / 6.0, znear=z_near, zfar=z_far)
         cam_pose = self._compute_initial_camera_pose()
         cam_node = pyrender.Node(camera=cam, matrix=cam_pose)
         self.scene.add_node(cam_node)
-        
+
         if as_gif:
             io.ensure_dir_exists(os.path.dirname(fig_path))
             with imageio.get_writer(fig_path, mode='I', fps=10) as writer:
@@ -257,4 +268,3 @@ class Renderer:
                 mesh = self.trimesh
         io.ensure_dir_exists(os.path.dirname(mesh_path))
         mesh.export(mesh_path)
-

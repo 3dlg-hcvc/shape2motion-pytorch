@@ -21,7 +21,7 @@ class Visualizer(Renderer):
     def view_stage1_input(self, instance_data):
         input_pts = instance_data['input_pts'][:]
         input_xyz = input_pts[:, :3]
-        input_normals = input_pts[:, 3:]
+        input_normals = input_pts[:, 6:9]
         anchor_pts_idx = instance_data['anchor_pts'][:]
         joint_direction_cat = instance_data['joint_direction_cat'][:]
         joint_direction_reg = instance_data['joint_direction_reg'][:]

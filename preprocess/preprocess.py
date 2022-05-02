@@ -150,7 +150,7 @@ class PreProcess:
                 part_semantic_masks = part_semantic_masks[point_idx]
                 part_instance_masks = part_instance_masks[point_idx]
 
-            input_pts[:, 6:9] = input_pts[:, 6:9] / 127.5 - 1.0
+            input_pts[:, 3:6] = input_pts[:, 3:6] / 127.5 - 1.0
 
             assert num_parts == np.unique(part_instance_masks).shape[0] - 1
 

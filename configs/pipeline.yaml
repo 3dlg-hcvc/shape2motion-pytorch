@@ -4,8 +4,8 @@ debug: false
 num_workers: 8
 
 defaults:
-  - dataset: shape2motion # shape2motion, multiscan
-  - preprocess: single_object # default, single_object
+  - dataset: multiscan # shape2motion, multiscan
+  - preprocess: default # default, single_object
   - network: default
   - postprocess: default
   - paths: default
