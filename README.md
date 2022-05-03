@@ -1,5 +1,5 @@
 # shape2motion-pytorch
-* pts, `(N,10)` array of points of the object point cloud with xyz, rgba, normals.
+* pts, `(N,9)` array of points of the object point cloud with xyz, normals, rgb.
 * semantic_masks, `(N,1)` array, values are the part semantic IDs.
 * instance_masks, `(N,1)` array of point class in range [0, K] of `N` points and `K` movable parts.
 * joint_types, `(K,1)` array of the joint types
