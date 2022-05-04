@@ -9,7 +9,7 @@ stage1:
   num_workers: "${postprocess.num_workers}"
 
   anchor_pts_threshold: 0.5
-  simmat_threshold: 70
+  simmat_threshold: 50
   part_proposal_threshold: 0.3
   top_k_score_threshold: 15
   top_score_threshold: 0.4

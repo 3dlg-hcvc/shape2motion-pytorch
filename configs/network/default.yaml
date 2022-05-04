@@ -32,13 +32,13 @@ stage1:
   augmentation: "${network.augmentation}"
 
   train:
-    continuous: false
+    continuous: true
     input_data: path
     input_model: path
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 500
     lr: 0.001
     batch_size: 8
 

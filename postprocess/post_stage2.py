@@ -78,7 +78,7 @@ class PostStage2Impl:
 
         assert len(self.move_angle_params) == len(
             self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
-        moved_pcds = np.zeros((3, num_points, 6))
+        moved_pcds = np.zeros((3, num_points, 9))
         for i in range(len(self.move_angle_params)):
             move_angle = float(self.move_angle_params[i]) / 180.0 * np.pi
             diag_length = LA.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))

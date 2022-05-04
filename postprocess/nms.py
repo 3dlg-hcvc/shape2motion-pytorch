@@ -148,7 +148,7 @@ class NMS:
                     pred_joints_map_each = np.ones(1) * -1
                 else:
                     pred_joints = pred_motions[pred_anchor_mask, :][pred_joints_idx, :]
-                    pred_joints[:, :6] += motion_regression
+                    # pred_joints[:, :6] += motion_regression
                     pred_scores = pred_motion_scores[pred_anchor_mask][pred_joints_idx]
                     pred_joints_map_each = np.ones(num_joints_per_part) * i
 

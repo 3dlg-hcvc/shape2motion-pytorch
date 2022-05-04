@@ -32,7 +32,7 @@ class Renderer:
         self.scene.ambient_light = [1.0, 1.0, 1.0]
         self.vertex_normals = None
         self.caption = None
-        self.point_size = 2
+        self.point_size = 8
 
         if vertices is not None:
             self.add_geometry(vertices, faces, colors, normals, mask)

@@ -164,11 +164,11 @@ class PreProcess:
             gt_proposals = np.zeros((num_parts + 1, num_points))
             simmat = np.zeros((num_points, num_points))
 
-            scale = np.linalg.norm(np.amax(input_pts[:, :3], axis=0) - np.amin(input_pts[:, :3], axis=0))
-            input_pts[:, :3] = input_pts[:, :3] / scale
+            # scale = np.linalg.norm(np.amax(input_pts[:, :3], axis=0) - np.amin(input_pts[:, :3], axis=0))
+            # input_pts[:, :3] = input_pts[:, :3] / scale
 
             for i in range(num_parts):
-                joint_origin = joint_origins[i, :] / scale
+                joint_origin = joint_origins[i, :]  # / scale
                 joint_axis = joint_axes[i, :]
 
                 input_xyz = input_pts[:, :3]
@@ -196,6 +196,10 @@ class PreProcess:
             articulation_id = 0
             instance_name = f'{key}_{articulation_id}'
             h5output_inst = h5output.require_group(instance_name)
+            h5output_inst.attrs['numParts'] = num_parts
+            h5output_inst.attrs['objectName'] = h5instance.attrs['objectName']
+            h5output_inst.attrs['objectId'] = h5instance.attrs['objectId']
+            h5output_inst.attrs['objectSemanticId'] = h5instance.attrs['objectSemanticId']
             h5output_inst.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
                                          compression='gzip')
             h5output_inst.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.float32),
