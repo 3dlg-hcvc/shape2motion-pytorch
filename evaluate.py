@@ -205,10 +205,12 @@ class Evaluation:
                     else:
                         best_match['joint_matches'][part_idx] = pred_part_joints_sorted_idx[j]
                     if md is not None:
-                        best_match['md'].append(md)
-                        best_match['oe'].append(oe)
+                        if ta == 1: 
+                            if selected_joint[6] != JointType.TRANS.value:
+                                best_match['md'].append(md)
+                            best_match['oe'].append(oe)
+                            best_match['epe'].append(epe)
                         best_match['ta'].append(ta)
-                        best_match['epe'].append(epe)
 
                         # if self.cfg.debug:
                         #     gt_cfg = {}
@@ -307,8 +309,8 @@ def main(cfg: DictConfig):
 
     evaluator = Evaluation(cfg)
 
-    data_sets = ['train']
-    # data_sets = [cfg.test_split]
+    # data_sets = ['train']
+    data_sets = [cfg.test_split]
     for data_set in data_sets:
         if data_set == 'train':
             input_path = cfg.paths.preprocess.output.train
@@ -324,7 +326,7 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     start = time()
-    io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
+    io.make_clean_folder('/localhome/yma50/shape2motion-pytorch/results/viz')
     main()
     end = time()
 
