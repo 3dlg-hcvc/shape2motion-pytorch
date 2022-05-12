@@ -94,8 +94,8 @@ class Evaluation:
 
         best_matches = []
         print(pred_h5.keys())
-        print(len(pred_h5.keys()))
-        for object_name in pred_h5.keys():
+        print(len(gt_h5.keys()))
+        for object_name in gt_h5.keys():
             best_match = {
                 'object_name': object_name,
                 'iou': [],
@@ -120,6 +120,12 @@ class Evaluation:
 
             best_match['num_gt_parts'] = gt_proposals.shape[0]
             best_match['num_gt_joints'] = gt_joints.shape[0]
+
+            if object_name not in pred_h5.keys():
+                best_match['num_pred_parts'] = 0
+                best_match['num_pred_joints'] = 0
+                best_matches.append(best_match)
+                continue
 
             pred_object = pred_h5[object_name]
             pred_part_proposals = pred_object['pred_part_proposal'][:]
@@ -205,10 +211,12 @@ class Evaluation:
                     else:
                         best_match['joint_matches'][part_idx] = pred_part_joints_sorted_idx[j]
                     if md is not None:
-                        best_match['md'].append(md)
-                        best_match['oe'].append(oe)
+                        if ta == 1:
+                            if selected_joint[6] == JointType.ROT.value:
+                                best_match['md'].append(md)
+                            best_match['oe'].append(oe)
+                            best_match['epe'].append(epe)
                         best_match['ta'].append(ta)
-                        best_match['epe'].append(epe)
 
                         # if self.cfg.debug:
                         #     gt_cfg = {}
@@ -266,6 +274,14 @@ class Evaluation:
             'joint_recall': [],
             'part_precision': [],
             'joint_precision': [],
+            'part_f1': [],
+            'joint_f1': [],
+            'pred_part_sum': [],
+            'gt_part_sum': [],
+            'pred_joint_sum': [],
+            'gt_joint_sum': [],
+            'match_part_sum': [],
+            'match_joint_sum': [],
         }
         names = []
         for best_match in best_matches:
@@ -287,17 +303,58 @@ class Evaluation:
                 joint_precision = len(best_match['joint_matches']) / best_match['num_pred_joints']
             else:
                 joint_precision = 0
+            if (part_precision + part_recall) > 0:
+                part_f1 = 2 * (part_precision * part_recall) / (part_precision + part_recall)
+            else:
+                part_f1 = 0
+
+            if (joint_precision + joint_recall) > 0:
+                joint_f1 = 2 * (joint_precision * joint_recall) / (joint_precision + joint_recall)
+            else:
+                joint_f1 = 0
+
             eval_results['part_recall'].append(part_recall)
             eval_results['joint_recall'].append(joint_recall)
             eval_results['part_precision'].append(part_precision)
             eval_results['joint_precision'].append(joint_precision)
+            eval_results['part_f1'].append(part_f1)
+            eval_results['joint_f1'].append(joint_f1)
+
+            eval_results['pred_part_sum'].append(best_match['num_pred_parts'])
+            eval_results['gt_part_sum'].append(best_match['num_gt_parts'])
+            eval_results['pred_joint_sum'].append(best_match['num_pred_joints'])
+            eval_results['gt_joint_sum'].append(best_match['num_gt_joints'])
+            eval_results['match_part_sum'].append(len(best_match['part_matches']))
+            eval_results['match_joint_sum'].append(len(best_match['joint_matches']))
             if len(best_match['iou']) > 0 and len(best_match['md']) > 0:
                 names.append(best_match['object_name'])
         print(names)
         print(len(names))
+        print(len(best_matches))
 
         for key, val in eval_results.items():
-            log.info(f'mean {key}: {np.mean(val)}')
+            if key not in ['pred_part_sum', 'gt_part_sum', 'pred_joint_sum', 'gt_joint_sum', 'match_part_sum', 'match_joint_sum']:
+                log.info(f'mean {key}: {round(np.mean(val), 4)}')
+
+        # recall, precision, f1    
+        pred_part_sum = np.sum(eval_results['pred_part_sum'])
+        gt_part_sum = np.sum(eval_results['gt_part_sum'])
+        pred_joint_sum = np.sum(eval_results['pred_joint_sum'])
+        gt_joint_sum = np.sum(eval_results['gt_joint_sum'])
+        match_part_sum = np.sum(eval_results['match_part_sum'])
+        match_joint_sum = np.sum(eval_results['match_joint_sum'])
+
+        part_recall = match_part_sum / gt_part_sum
+        joint_recall = match_joint_sum / gt_joint_sum
+        part_precision = match_part_sum / pred_part_sum
+        joint_precision = match_joint_sum / pred_joint_sum
+        log.info(f'all part recall: {round(part_recall, 4)}')
+        log.info(f'all joint recall: {round(joint_recall, 4)}')
+        log.info(f'all part precision: {round(part_precision, 4)}')
+        log.info(f'all joint precision: {round(joint_precision, 4)}')
+        log.info(f'all part f1: {round(2*(part_precision * part_recall) / (part_precision + part_recall), 4)}')
+        log.info(f'all joint f1: {round(2*(joint_precision * joint_recall) / (joint_precision + joint_recall), 4)}')
+
 
 
 @hydra.main(config_path='configs', config_name='evaluate')
@@ -307,8 +364,8 @@ def main(cfg: DictConfig):
 
     evaluator = Evaluation(cfg)
 
-    data_sets = ['train']
-    # data_sets = [cfg.test_split]
+    # data_sets = ['train']
+    data_sets = [cfg.test_split]
     for data_set in data_sets:
         if data_set == 'train':
             input_path = cfg.paths.preprocess.output.train
