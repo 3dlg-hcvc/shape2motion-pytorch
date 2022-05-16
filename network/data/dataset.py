@@ -13,7 +13,7 @@ class Shape2MotionDataset(Dataset):
         self.h5_data = h5py.File(data_path, 'r')
         self.num_points = num_points
         self.stage = stage
-        self.augmentation_cfg = augmentation_cfg
+        self.augmentation_cfg = None
 
         self.index2instance = self._pre_load()
 
@@ -66,7 +66,7 @@ class Shape2MotionDataset(Dataset):
 
             gt_dict = {}
             filter_input_list = ['input_pts', 'joint_all_directions', 'gt_joints', 'gt_proposals', 'pred_motion_scores',
-                                 'good_motion']
+                                 'good_motion', 'point_idx']
             for k, v in instance_data.items():
                 if k in filter_input_list:
                     continue
@@ -76,7 +76,7 @@ class Shape2MotionDataset(Dataset):
             if self.augmentation_cfg is not None:
                 input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
                 inv_trans_m = torch.inverse(m).transpose(0, 1)
-                input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
+                input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
                 if self.augmentation_cfg.color:
                     color_rand = torch.randn(3) * 0.05
                     input_pts[:, 3:6] += color_rand
@@ -86,8 +86,7 @@ class Shape2MotionDataset(Dataset):
                 else:
                     gt_dict['motion_regression'][:3] = torch.matmul(gt_dict['motion_regression'][:3], m)
                     gt_dict['moved_pcds'][:, :, :3] = torch.matmul(gt_dict['moved_pcds'][:, :, :3], m)
-
-                    gt_dict['moved_pcds'][:, :, 6:9] = torch.matmul(gt_dict['moved_pcds'][:, :, 6:9], inv_trans_m)
+                    gt_dict['moved_pcds'][:, :, 3:6] = torch.matmul(gt_dict['moved_pcds'][:, :, 3:6], inv_trans_m)
 
                     if self.augmentation_cfg.color:
                         gt_dict['moved_pcds'][:, :, 3:6] += color_rand
@@ -108,7 +107,7 @@ class Shape2MotionDataset(Dataset):
             if self.augmentation_cfg is not None:
                 input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
                 inv_trans_m = torch.inverse(m).transpose(0, 1)
-                input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
+                input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
                 if self.augmentation_cfg.color:
                     color_rand = torch.randn(3) * 0.05
                     input_pts[:, 3:6] += color_rand

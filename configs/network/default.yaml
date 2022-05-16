@@ -11,10 +11,10 @@ num_points: 4096
 num_channels: 6
 
 augmentation:
-  jitter: true
-  flip: true
+  jitter: false
+  flip: false
   rotate: false
-  color: true
+  color: false
 
 test_split: "val"
 
@@ -32,7 +32,7 @@ stage1:
   augmentation: "${network.augmentation}"
 
   train:
-    continuous: true
+    continuous: false
     input_data: path
     input_model: path
     save_frequency: 5

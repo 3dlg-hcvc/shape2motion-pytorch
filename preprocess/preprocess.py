@@ -115,8 +115,8 @@ class PreProcess:
             split_info.to_csv(split_info_path)
         elif DatasetName[dataset_name] == DatasetName.MULTISCAN:
             log.info(f'Preprocessing dataset {dataset_name}')
-            self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
-                                        os.path.join(self.output_cfg.path, self.output_cfg.train_data))
+            # self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
+            #                             os.path.join(self.output_cfg.path, self.output_cfg.train_data))
 
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
                                         os.path.join(self.output_cfg.path, self.output_cfg.val_data))
@@ -141,9 +141,11 @@ class PreProcess:
             joint_axes = joint_axes / np.linalg.norm(joint_axes, axis=1).reshape(-1, 1)
             joint_ranges = h5instance['joint_ranges'][:]
 
+            fps_sample = False
             if pts.shape[0] == num_points:
                 input_pts = pts
             else:
+                fps_sample = True
                 pcd = torch.from_numpy(pts.reshape((1, pts.shape[0], pts.shape[1])))
                 point_idx = fps(pcd, num_points)[0].cpu().numpy()
                 input_pts = pts[point_idx, :]
@@ -151,8 +153,12 @@ class PreProcess:
                 part_instance_masks = part_instance_masks[point_idx]
 
             input_pts[:, 3:6] = input_pts[:, 3:6] / 127.5 - 1.0
-
-            assert num_parts == np.unique(part_instance_masks).shape[0] - 1
+            part_instance_masks[part_instance_masks < 0] = 0
+            try:
+                assert num_parts == np.unique(part_instance_masks).shape[0] - 1
+            except:
+                import pdb
+                pdb.set_trace()
 
             anchor_pts = np.zeros(num_points)
             joint_direction_cat = np.zeros(num_points)
@@ -163,6 +169,8 @@ class PreProcess:
             gt_joints = np.zeros((num_parts, 7))
             gt_proposals = np.zeros((num_parts + 1, num_points))
             simmat = np.zeros((num_points, num_points))
+
+            # input_pts = np.column_stack((input_pts[:, :3], input_pts[:, 6:9]))
 
             # scale = np.linalg.norm(np.amax(input_pts[:, :3], axis=0) - np.amin(input_pts[:, :3], axis=0))
             # input_pts[:, :3] = input_pts[:, :3] / scale
@@ -197,6 +205,7 @@ class PreProcess:
             instance_name = f'{key}_{articulation_id}'
             h5output_inst = h5output.require_group(instance_name)
             h5output_inst.attrs['numParts'] = num_parts
+            h5output_inst.attrs['fpsSample'] = fps_sample
             h5output_inst.attrs['objectName'] = h5instance.attrs['objectName']
             h5output_inst.attrs['objectId'] = h5instance.attrs['objectId']
             h5output_inst.attrs['objectSemanticId'] = h5instance.attrs['objectSemanticId']
@@ -224,6 +233,9 @@ class PreProcess:
                                          compression='gzip')
             h5output_inst.create_dataset('simmat', shape=simmat.shape, data=simmat.astype(np.float32),
                                          compression='gzip')
+            if fps_sample:
+                h5output_inst.create_dataset('point_idx', shape=point_idx.shape, data=point_idx.astype(np.int32),
+                                             compression='gzip')
 
             if self.debug:
                 viz = Visualizer()

@@ -36,5 +36,5 @@ nms:
   num_workers: "${postprocess.num_workers}"
 
   overlap_threshold: 0.5
-  score_threshold: 0.5
+  score_threshold: 0.25
   angle_threshold: 45

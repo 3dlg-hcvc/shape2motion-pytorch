@@ -88,9 +88,11 @@ class Evaluation:
         dist = LA.norm(np.cross(vec1, vec2)) / LA.norm(vec1)
         return dist
 
-    def evaluate(self, gt_h5file, pred_h5file):
+    def evaluate(self, gt_h5file, pred_h5file, raw_h5file=None):
         gt_h5 = h5py.File(gt_h5file, 'r')
         pred_h5 = h5py.File(pred_h5file, 'r')
+        if raw_h5file is not None:
+            raw_h5 = h5py.File(raw_h5file, 'r')
 
         best_matches = []
         print(pred_h5.keys())
@@ -105,23 +107,56 @@ class Evaluation:
                 'ta': [],
                 'part_matches': {},
                 'joint_matches': {},
+                'M': [],
+                'MA': [],
+                'MAO': [],
                 'num_gt_parts': 0,
                 'num_pred_parts': 0,
                 'num_gt_joints': 0,
                 'num_pred_joints': 0,
             }
 
+            if raw_h5file is not None:
+                raw_name = '_'.join(object_name.split('_')[:-1])
+                raw_h5_inst = raw_h5[raw_name]
+
             gt_object = gt_h5[object_name]
             input_pts = gt_object['input_pts'][:]
+            if raw_h5file is not None and raw_h5_inst.attrs['has_input']:
+                input_pts = np.concatenate((input_pts, raw_h5_inst['eval_add_pts'][:]), axis=0)
+
             input_xyz = input_pts[:, :3]
-            gt_proposals = gt_object['gt_proposals'][:][1:, :].astype(bool)
+            
+            if raw_h5file is not None:
+                num_parts = raw_h5_inst.attrs['numParts']
+                if raw_h5_inst.attrs['has_input']:
+                    gt_proposals = np.zeros((num_parts + 1, input_xyz.shape[0]))
+                    gt_inst_mask = gt_object['gt_proposals'][:]
+                    mask = np.zeros_like(gt_inst_mask)
+                    for i in range(len(gt_inst_mask)):
+                        mask[i] = gt_inst_mask[i]*i
+                    gt_inst_mask = np.sum(mask, axis=0)
+
+                    part_instance_masks = np.concatenate((gt_inst_mask, raw_h5_inst['eval_add_vertex_inst'][:]))
+                    part_instance_masks[part_instance_masks < 0] = 0
+                    assert num_parts == np.unique(part_instance_masks).shape[0] - 1
+                
+                    for i in range(num_parts):
+                        gt_proposals[i + 1] = part_instance_masks == (i + 1)
+                else:
+                    gt_proposals = gt_object['gt_proposals'][:]
+            else:
+                gt_proposals = gt_object['gt_proposals'][:]
+                num_parts = gt_proposals.shape[0] - 1
+
+            gt_proposals = gt_proposals[1:, :].astype(bool)
             gt_joints = gt_object['gt_joints'][:]
             turn_idx = np.where(np.sum(gt_proposals, axis=1) == 0)[0]
 
-            best_match['num_gt_parts'] = gt_proposals.shape[0]
+            best_match['num_gt_parts'] = num_parts
             best_match['num_gt_joints'] = gt_joints.shape[0]
 
-            if object_name not in pred_h5.keys():
+            if object_name not in pred_h5.keys() or (raw_h5file is not None and not raw_h5_inst.attrs['has_input']):
                 best_match['num_pred_parts'] = 0
                 best_match['num_pred_joints'] = 0
                 best_matches.append(best_match)
@@ -129,6 +164,8 @@ class Evaluation:
 
             pred_object = pred_h5[object_name]
             pred_part_proposals = pred_object['pred_part_proposal'][:]
+            if raw_h5file is not None:
+                pred_part_proposals = np.concatenate((pred_part_proposals, np.zeros_like(raw_h5_inst['eval_add_vertex_inst'][:])))
             pred_joints = pred_object['pred_joints'][:]
             pred_scores = pred_object['pred_scores'][:]
             pred_joints_map = pred_object['pred_joints_map'][:]
@@ -217,6 +254,13 @@ class Evaluation:
                             best_match['oe'].append(oe)
                             best_match['epe'].append(epe)
                         best_match['ta'].append(ta)
+                        if ta == 1:
+                            best_match['M'].append(pred_part_joints_sorted_idx[j])
+                            if oe < 10:
+                                best_match['MA'].append(pred_part_joints_sorted_idx[j])
+                                scale = np.linalg.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
+                                if md < scale * 0.25:
+                                    best_match['MAO'].append(pred_part_joints_sorted_idx[j])
 
                         # if self.cfg.debug:
                         #     gt_cfg = {}
@@ -262,7 +306,8 @@ class Evaluation:
 
                 input_xyz = gt_object['input_pts'][:][:, :3]
                 viz = Visualizer(input_xyz)
-                viz.view_evaluation_result(gt_cfg, pred_cfg)
+                viz.view_evaluation_result(gt_cfg, pred_cfg, output_dir=io.to_abs_path('./results/viz', get_original_cwd()))
+                viz.view_input_color(gt_object['input_pts'][:], object_name, output_dir=io.to_abs_path('./results/viz', get_original_cwd()))
 
         eval_results = {
             'iou': [],
@@ -282,6 +327,20 @@ class Evaluation:
             'gt_joint_sum': [],
             'match_part_sum': [],
             'match_joint_sum': [],
+
+            'M_joint_recall': [],
+            'MA_joint_recall': [],
+            'MAO_joint_recall': [],
+            'M_joint_precision': [],
+            'MA_joint_precision': [],
+            'MAO_joint_precision': [],
+            'M_joint_f1': [],
+            'MA_joint_f1': [],
+            'MAO_joint_f1': [],
+            
+            'M_num': [],
+            'MA_num': [],
+            'MAO_num': [],
         }
         names = []
         for best_match in best_matches:
@@ -299,10 +358,12 @@ class Evaluation:
                 part_precision = len(best_match['part_matches']) / best_match['num_pred_parts']
             else:
                 part_precision = 0
+
             if best_match['num_pred_joints'] > 0:
                 joint_precision = len(best_match['joint_matches']) / best_match['num_pred_joints']
             else:
                 joint_precision = 0
+            
             if (part_precision + part_recall) > 0:
                 part_f1 = 2 * (part_precision * part_recall) / (part_precision + part_recall)
             else:
@@ -313,6 +374,35 @@ class Evaluation:
             else:
                 joint_f1 = 0
 
+            
+            M_joint_recall = len(best_match['M']) / best_match['num_gt_joints']
+            MA_joint_recall = len(best_match['MA']) / best_match['num_gt_joints']
+            MAO_joint_recall = len(best_match['MAO']) / best_match['num_gt_joints']
+
+            if best_match['num_pred_joints'] > 0:
+                M_joint_precision = len(best_match['M']) / best_match['num_pred_joints']
+                MA_joint_precision = len(best_match['MA']) / best_match['num_pred_joints']
+                MAO_joint_precision = len(best_match['MAO']) / best_match['num_pred_joints']
+            else:
+                M_joint_precision = 0
+                MA_joint_precision = 0
+                MAO_joint_precision = 0
+
+            if (M_joint_precision + M_joint_recall) > 0:
+                M_joint_f1 = 2 * (M_joint_precision * M_joint_recall) / (M_joint_precision + M_joint_recall)
+            else:
+                M_joint_f1 = 0
+
+            if (MA_joint_precision + MA_joint_recall) > 0:
+                MA_joint_f1 = 2 * (MA_joint_precision * MA_joint_recall) / (MA_joint_precision + MA_joint_recall)
+            else:
+                MA_joint_f1 = 0
+
+            if (MAO_joint_precision + MAO_joint_recall) > 0:
+                MAO_joint_f1 = 2 * (MAO_joint_precision * MAO_joint_recall) / (MAO_joint_precision + MAO_joint_recall)
+            else:
+                MAO_joint_f1 = 0
+
             eval_results['part_recall'].append(part_recall)
             eval_results['joint_recall'].append(joint_recall)
             eval_results['part_precision'].append(part_precision)
@@ -320,12 +410,28 @@ class Evaluation:
             eval_results['part_f1'].append(part_f1)
             eval_results['joint_f1'].append(joint_f1)
 
+            eval_results['M_joint_recall'].append(M_joint_recall)
+            eval_results['MA_joint_recall'].append(MA_joint_recall)
+            eval_results['MAO_joint_recall'].append(MAO_joint_recall)
+
+            eval_results['M_joint_precision'].append(M_joint_precision)
+            eval_results['MA_joint_precision'].append(MA_joint_precision)
+            eval_results['MAO_joint_precision'].append(MAO_joint_precision)
+
+            eval_results['M_joint_f1'].append(M_joint_f1)
+            eval_results['MA_joint_f1'].append(MA_joint_f1)
+            eval_results['MAO_joint_f1'].append(MAO_joint_f1)
+
             eval_results['pred_part_sum'].append(best_match['num_pred_parts'])
             eval_results['gt_part_sum'].append(best_match['num_gt_parts'])
             eval_results['pred_joint_sum'].append(best_match['num_pred_joints'])
             eval_results['gt_joint_sum'].append(best_match['num_gt_joints'])
             eval_results['match_part_sum'].append(len(best_match['part_matches']))
             eval_results['match_joint_sum'].append(len(best_match['joint_matches']))
+
+            eval_results['M_num'].append(len(best_match['M']))
+            eval_results['MA_num'].append(len(best_match['MA']))
+            eval_results['MAO_num'].append(len(best_match['MAO']))
             if len(best_match['iou']) > 0 and len(best_match['md']) > 0:
                 names.append(best_match['object_name'])
         print(names)
@@ -333,7 +439,7 @@ class Evaluation:
         print(len(best_matches))
 
         for key, val in eval_results.items():
-            if key not in ['pred_part_sum', 'gt_part_sum', 'pred_joint_sum', 'gt_joint_sum', 'match_part_sum', 'match_joint_sum']:
+            if key not in ['pred_part_sum', 'gt_part_sum', 'pred_joint_sum', 'gt_joint_sum', 'match_part_sum', 'match_joint_sum', 'M_num', 'MA_num', 'MAO_num']:
                 log.info(f'mean {key}: {round(np.mean(val), 4)}')
 
         # recall, precision, f1    
@@ -344,16 +450,41 @@ class Evaluation:
         match_part_sum = np.sum(eval_results['match_part_sum'])
         match_joint_sum = np.sum(eval_results['match_joint_sum'])
 
+        M_num = np.sum(eval_results['M_num'])
+        MA_num = np.sum(eval_results['MA_num'])
+        MAO_num = np.sum(eval_results['MAO_num'])
+
         part_recall = match_part_sum / gt_part_sum
         joint_recall = match_joint_sum / gt_joint_sum
         part_precision = match_part_sum / pred_part_sum
         joint_precision = match_joint_sum / pred_joint_sum
+
+        M_recall = M_num / gt_joint_sum
+        MA_recall = MA_num / gt_joint_sum
+        MAO_recall = MAO_num / gt_joint_sum
+
+        M_precision = M_num / pred_joint_sum
+        MA_precision = MA_num / pred_joint_sum
+        MAO_precision = MAO_num / pred_joint_sum
+
+
         log.info(f'all part recall: {round(part_recall, 4)}')
         log.info(f'all joint recall: {round(joint_recall, 4)}')
         log.info(f'all part precision: {round(part_precision, 4)}')
         log.info(f'all joint precision: {round(joint_precision, 4)}')
         log.info(f'all part f1: {round(2*(part_precision * part_recall) / (part_precision + part_recall), 4)}')
         log.info(f'all joint f1: {round(2*(joint_precision * joint_recall) / (joint_precision + joint_recall), 4)}')
+
+        log.info(f'M joint recall: {round(M_recall, 4)}')
+        log.info(f'MA joint recall: {round(MA_recall, 4)}')
+        log.info(f'MAO joint recall: {round(MAO_recall, 4)}')
+        log.info(f'M joint precision: {round(M_precision, 4)}')
+        log.info(f'MA joint precision: {round(MA_precision, 4)}')
+        log.info(f'MAO joint precision: {round(MAO_precision, 4)}')
+
+        log.info(f'M F1: {round(2*(M_precision * M_recall) / (M_precision + M_recall), 4)}')
+        log.info(f'MA F1: {round(2*(MA_precision * MA_recall) / (MA_precision + MA_recall), 4)}')
+        log.info(f'MAO F1: {round(2*(MAO_precision * MAO_recall) / (MAO_precision + MAO_recall), 4)}')
 
 
 
@@ -377,11 +508,13 @@ def main(cfg: DictConfig):
             input_path = cfg.paths.preprocess.output.test
             output_path = nms_output_cfg.test
 
+        raw_h5file = '/local-scratch/localhome/yma50/Development/shape2motion-pytorch/dataset/multiscan/val.h5'
+        # evaluator.evaluate(input_path, output_path, raw_h5file)
         evaluator.evaluate(input_path, output_path)
 
 if __name__ == '__main__':
     start = time()
-    io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
+    io.make_clean_folder('./results/viz')
     main()
     end = time()
 

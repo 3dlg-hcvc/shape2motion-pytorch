@@ -64,14 +64,14 @@ class Renderer:
         return rgba
 
     @staticmethod
-    def colors_from_mask(mask, empty_first=True):
+    def colors_from_mask(mask, empty_first=True, color_map='Set1'):
         unique_val = np.sort(np.unique(mask))
         colors = np.empty([mask.shape[0], 4])
         for i, val in enumerate(unique_val):
             if empty_first and i == 0:
                 rgba = [0.5, 0.5, 0.5, 0.5]
             else:
-                rgba = Renderer.rgba_by_index(val)
+                rgba = Renderer.rgba_by_index(val, color_map)
             colors[mask == val] = rgba
         return colors
 
@@ -153,6 +153,24 @@ class Renderer:
             arrow.apply_transform(transformation)
             arrows.append(arrow)
         self.trimesh_list += arrows
+
+    def get_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5):
+        arrows = []
+        z_axis = [0, 0, 1]
+        for i, pos in enumerate(positions):
+            arrow_length = length if isinstance(length, float) else length[i]
+            if arrow_length < 10e-6:
+                continue
+            transformation = trimesh.geometry.align_vectors(z_axis, axes[i])
+            transformation[:3, 3] += pos + axes[i] * (1 - Renderer.head_body_ratio) / 2 * arrow_length
+            if len(colors) != len(positions):
+                color = None
+            else:
+                color = colors[i]
+            arrow = Renderer.draw_arrow(color, radius, arrow_length)
+            arrow.apply_transform(transformation)
+            arrows.append(arrow)
+        return arrows
 
     def _merge_geometries(self):
         if len(self.trimesh_list) > 0:

@@ -69,18 +69,18 @@ class Shape2MotionTrainer:
         batch_size = self.cfg.train.batch_size if not eval_only else self.cfg.test.batch_size
         data_augmentation = self.cfg.augmentation if not eval_only else None
         self.log.info(f'Train on {self.data_path["train"]}, validate on {self.data_path["test"]}')
-        self.train_loader = torch.utils.data.DataLoader(
-            Shape2MotionDataset(
-                self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage,
-                augmentation_cfg=data_augmentation
-            ),
-            batch_size=batch_size,
-            shuffle=train_shuffle,
-            num_workers=self.cfg.num_workers,
-            pin_memory=True
-        )
+        # self.train_loader = torch.utils.data.DataLoader(
+        #     Shape2MotionDataset(
+        #         self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage,
+        #         augmentation_cfg=data_augmentation
+        #     ),
+        #     batch_size=batch_size,
+        #     shuffle=train_shuffle,
+        #     num_workers=self.cfg.num_workers,
+        #     pin_memory=True
+        # )
 
-        self.log.info(f'Num {len(self.train_loader)} batches in train loader')
+        # self.log.info(f'Num {len(self.train_loader)} batches in train loader')
 
         self.test_loader = torch.utils.data.DataLoader(
             Shape2MotionDataset(
@@ -314,9 +314,9 @@ class Shape2MotionTrainer:
 
         # Save the prediction results into hdf5
         data_sets = ['train', 'test']
-        # if self.cfg.eval_only:
-        #     data_sets = ['test']
-        for data_set in data_sets:
+        if self.cfg.eval_only:
+            data_sets = ['test']
+        for data_set in              data_sets:
             if data_set == 'train':
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
             else:

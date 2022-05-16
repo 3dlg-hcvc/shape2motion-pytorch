@@ -3,6 +3,7 @@ from enum import Enum
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import trimesh
+import os
 
 from tools.visualizations import Renderer
 from tools.utils import io
@@ -271,14 +272,15 @@ class Visualizer(Renderer):
         gt_viewer.add_trimesh_arrows([joint_origins], [joint_directions], colors=joint_colors, length=0.4)
         gt_viewer.show(window_name='pred', non_block=True)
 
-    def view_evaluation_result(self, gt_cfg, pred_cfg):
+    def view_evaluation_result(self, gt_cfg, pred_cfg, output_dir='viz'):
         part_proposals = gt_cfg.part_proposals
         joints = gt_cfg.joints
         object_name = gt_cfg.object_name
         mask = np.zeros(part_proposals.shape[1])
         for i in range(part_proposals.shape[0]):
             mask[part_proposals[i, :]] = (i+1)
-        gt_viewer = Renderer(vertices=self.vertices, mask=mask.astype(int))
+        colors = Renderer.colors_from_mask(mask.astype(int), empty_first=True, color_map='Set2')
+        gt_viewer = Renderer(vertices=self.vertices, colors=colors)
         joint_origins = joints[:, :3]
         joint_directions = joints[:, 3:6]
         joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
@@ -293,13 +295,12 @@ class Visualizer(Renderer):
             elif joint_type == JointType.BOTH.value:
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
-        gt_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
-        gt_viewer.show(window_name=f'gt')
-        # gt_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/gt.gif', as_gif=True)
-        # io.make_clean_folder('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz')
-        io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt')
-        # gt_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.jpg', as_gif=False)
-        # gt_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/gt/{object_name}.ply')
+        gt_arrows = gt_viewer.get_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        # gt_viewer.show(window_name=f'gt')
+        io.ensure_dir_exists(os.path.join(output_dir, 'gt'))
+        arrows = trimesh.util.concatenate(gt_arrows)
+        arrows.export(os.path.join(output_dir, 'gt', f'{object_name}_arrows.ply'))
+        gt_viewer.export(os.path.join(output_dir, 'gt', f'{object_name}.ply'))
 
         part_proposals = pred_cfg.part_proposals.astype(bool)
         joints = pred_cfg.joints
@@ -308,7 +309,8 @@ class Visualizer(Renderer):
         mask = np.zeros(part_proposals.shape[1])
         for i in range(part_proposals.shape[0]):
             mask[part_proposals[i, :]] = (i+1)
-        pred_viewer = Renderer(vertices=self.vertices, mask=mask.astype(int))
+        colors = Renderer.colors_from_mask(mask.astype(int), empty_first=True, color_map='Set2')
+        pred_viewer = Renderer(vertices=self.vertices, colors=colors)
         joint_origins = joints[:, :3]
         joint_directions = joints[:, 3:6]
         joint_directions = joint_directions / np.linalg.norm(joint_directions, axis=1).reshape(-1, 1)
@@ -327,18 +329,22 @@ class Visualizer(Renderer):
             elif joint_type == JointType.BOTH.value:
                 joint_colors[i] = [0.0, 1.0, 0.0, 0.8]
 
-        pred_viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        pred_arrows = pred_viewer.get_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
         
         joint_types = gt_joints[:, 6]
         joint_colors = np.zeros((len(joint_types), 4))
         for i, joint_type in enumerate(joint_types):
             joint_colors[i] = [0.0, 1.0, 0.0, 0.5]
-        pred_viewer.add_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
-        pred_viewer.show(window_name=f'pred')
-        io.ensure_dir_exists('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred')
-        # pred_viewer.export(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.ply')
-        # pred_viewer.render(f'/local-scratch/localhome/yma50/Development/shape2motion-pytorch/results/viz/pred/{object_name}.jpg', as_gif=False)
-        # pred_viewer.render('/local-scratch/localhome/yma50/Development/shape2motion-pytorch/pred.gif', as_gif=True)
+        gt_arrows = pred_viewer.get_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
 
+        arrows = trimesh.util.concatenate(pred_arrows + gt_arrows)
+        io.ensure_dir_exists(os.path.join(output_dir, 'pred'))
+        arrows.export(os.path.join(output_dir, 'pred', f'{object_name}_arrows.ply'))
+        # pred_viewer.show(window_name=f'pred')
+        pred_viewer.export(os.path.join(output_dir, 'pred', f'{object_name}.ply'))
+        pred_viewer.render(os.path.join(output_dir, 'pred', f'{object_name}.gif'), as_gif=True)
 
-            
+    def view_input_color(self, pts, object_name, output_dir):
+        m = trimesh.Trimesh(vertices=pts[:, :3], vertex_colors=(pts[:, 3:6]+1) / 2)
+        io.ensure_dir_exists(os.path.join(output_dir, 'input'))
+        m.export(os.path.join(output_dir, 'input', f'{object_name}.ply'))
