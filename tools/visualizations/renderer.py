@@ -6,6 +6,7 @@ import imageio
 import time
 import numpy as np
 from PIL import Image
+import pymeshlab
 
 from tools.utils import io
 from matplotlib import cm
@@ -56,15 +57,23 @@ class Renderer:
         self.caption = caption
 
     @staticmethod
-    def rgba_by_index(index, cmap_name='Set1', alpha=1.0):
-        if index > 8:
-            index = index % 9
-        rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
-        rgba[-1] = alpha
-        return rgba
+    def rgba_by_index(index, cmap_name='Set2', alpha=1.0):
+        colors = np.array([
+            [227, 119, 194, 255],
+            [148, 103, 189, 255],
+            [31, 119, 180, 255],
+            [140, 86, 75, 255],
+            [188, 189, 34, 255],
+            [23, 190, 207, 255],
+        ]) / 255.0
+        if index > 5:
+            index = index % 6
+        # rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
+        # rgba[-1] = alpha
+        return colors[index]
 
     @staticmethod
-    def colors_from_mask(mask, empty_first=True, color_map='Set1'):
+    def colors_from_mask(mask, empty_first=True, color_map='Set2'):
         unique_val = np.sort(np.unique(mask))
         colors = np.empty([mask.shape[0], 4])
         for i, val in enumerate(unique_val):
@@ -110,18 +119,44 @@ class Renderer:
         self.point_cloud = trimesh.points.PointCloud(all_vertices, colors=all_colors)
 
     @staticmethod
-    def draw_arrow(color=None, radius=0.01, length=0.5):
+    def draw_arrow(color=None, head_color=None, radius=0.01, length=0.5):
         if color is None:
             color = [1.0, 0.0, 0.0, 1.0]
         head_length = length * Renderer.head_body_ratio
         body_length = length - head_length
         head_transformation = np.eye(4)
         head_transformation[:3, 3] += [0, 0, body_length / 2.0]
-        head = trimesh.creation.cone(3 * radius, head_length, sections=10, transform=head_transformation)
-        body = trimesh.creation.cylinder(radius, body_length, sections=10)
-        arrow = head + body
-        arrow.visual.vertex_colors = color
+        head = trimesh.creation.cone(3 * radius, head_length, sections=40, transform=head_transformation)
+        head.visual.vertex_colors = head_color
+        body = trimesh.creation.cylinder(radius, body_length, sections=40)
+        body.visual.vertex_colors = color
+        arrow = trimesh.util.concatenate([head, body])
         return arrow
+
+    @staticmethod
+    def get_curling_arrow(color, head_color):
+        arrow_ply = '/localhome/yma50/Documents/blender/arrow.ply'
+        arrow_head_ply = '/localhome/yma50/Documents/blender/arrow_head.ply'
+
+        ms = pymeshlab.MeshSet()
+        ms.load_new_mesh(arrow_ply)
+        m = ms.current_mesh()
+        vertices = m.vertex_matrix()
+        normals = m.vertex_normal_matrix()
+        faces = m.face_matrix()
+
+        mesh = trimesh.Trimesh(vertices, faces=faces, vertex_colors=color, vertex_normals=normals)
+
+        ms = pymeshlab.MeshSet()
+        ms.load_new_mesh(arrow_head_ply)
+        m = ms.current_mesh()
+        vertices = m.vertex_matrix()
+        normals = m.vertex_normal_matrix()
+        faces = m.face_matrix()
+
+        mesh_head = trimesh.Trimesh(vertices, faces=faces, vertex_colors=head_color, vertex_normals=normals)
+
+        return trimesh.util.concatenate([mesh, mesh_head])
 
     def add_arrows(self, positions, axes, color=None, radius=0.01, length=0.5):
         log.debug('add arrow')
@@ -135,7 +170,7 @@ class Renderer:
         arrows = pyrender.Mesh.from_trimesh(arrow, poses=transformations)
         self.scene.add(arrows)
 
-    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5):
+    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5, curl=True):
         log.debug('add trimesh arrow')
         arrows = []
         z_axis = [0, 0, 1]
@@ -152,11 +187,18 @@ class Renderer:
             arrow = Renderer.draw_arrow(color, radius, arrow_length)
             arrow.apply_transform(transformation)
             arrows.append(arrow)
+            if curl:
+                curling_arrow = Renderer.get_curling_arrow([255, 0, 0])
+                scale = np.diag([0.1, 0.1, 0.1, 1.0])
+                curling_arrow.apply_transform(scale)
+                curling_arrow.apply_transform(transformation)
+                arrows.append(curling_arrow)
         self.trimesh_list += arrows
 
-    def get_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5):
+    def get_trimesh_arrows(self, positions, axes, origin_colors=[None], colors=[None], head_colors=[None], radius=0.02, length=0.5, joint_types=[None], curls_colors=None, curls_head_colors=None):
         arrows = []
         z_axis = [0, 0, 1]
+        length = np.linalg.norm(np.amax(self.vertices) - np.amin(self.vertices)) / 2.0
         for i, pos in enumerate(positions):
             arrow_length = length if isinstance(length, float) else length[i]
             if arrow_length < 10e-6:
@@ -167,9 +209,22 @@ class Renderer:
                 color = None
             else:
                 color = colors[i]
-            arrow = Renderer.draw_arrow(color, radius, arrow_length)
+            arrow = Renderer.draw_arrow(color, head_colors[i], radius, arrow_length)
             arrow.apply_transform(transformation)
             arrows.append(arrow)
+            if joint_types[i] == 1:
+                curling_arrow = Renderer.get_curling_arrow(curls_colors[i], curls_head_colors[i])
+                scale = np.diag([0.1, 0.1, 0.1, 1.0])
+                curling_arrow.apply_transform(scale)
+                curling_arrow.apply_transform(transformation)
+                arrows.append(curling_arrow)
+                sphere = trimesh.creation.icosphere(subdivisions=4, radius=3*radius)
+                sphere.visual.vertex_colors = origin_colors[i]
+                sphere_transformation = np.eye(4)
+                sphere_transformation[:3, 3] = [0, 0, (-arrow_length + arrow_length * Renderer.head_body_ratio) / 2.0]
+                sphere.apply_transform(sphere_transformation)
+                sphere.apply_transform(transformation)
+                arrows.append(sphere)
         return arrows
 
     def _merge_geometries(self):

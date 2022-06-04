@@ -54,7 +54,7 @@ class Evaluation:
             np.clip(np.dot(pred_joint_dir, gt_joint_dir) / (LA.norm(pred_joint_dir) * LA.norm(gt_joint_dir)), -1, 1))
         a2 = np.arccos(
             np.clip(np.dot(-pred_joint_dir, gt_joint_dir) / (LA.norm(-pred_joint_dir) * LA.norm(gt_joint_dir)), -1, 1))
-        return min(a1, a2)
+        return min(a1, a2) / np.pi * 180.0
 
     def move_pts_with_joint(self, pts, joint_origin, joint_direction, joint_type, angle=np.pi, trans=1.0):
         if joint_type == JointType.ROT.value:
@@ -139,7 +139,11 @@ class Evaluation:
 
                     part_instance_masks = np.concatenate((gt_inst_mask, raw_h5_inst['eval_add_vertex_inst'][:]))
                     part_instance_masks[part_instance_masks < 0] = 0
-                    assert num_parts == np.unique(part_instance_masks).shape[0] - 1
+                    try:
+                        assert num_parts == np.unique(part_instance_masks).shape[0] - 1
+                    except:
+                        import pdb
+                        pdb.set_trace()
                 
                     for i in range(num_parts):
                         gt_proposals[i + 1] = part_instance_masks == (i + 1)
@@ -256,10 +260,10 @@ class Evaluation:
                         best_match['ta'].append(ta)
                         if ta == 1:
                             best_match['M'].append(pred_part_joints_sorted_idx[j])
-                            if oe < 10:
+                            if oe < np.pi / 180 * 10.0:
                                 best_match['MA'].append(pred_part_joints_sorted_idx[j])
                                 scale = np.linalg.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
-                                if md < scale * 0.25:
+                                if md < scale * 0.25 or selected_joint[6] == JointType.TRANS.value:
                                     best_match['MAO'].append(pred_part_joints_sorted_idx[j])
 
                         # if self.cfg.debug:
@@ -441,6 +445,8 @@ class Evaluation:
         for key, val in eval_results.items():
             if key not in ['pred_part_sum', 'gt_part_sum', 'pred_joint_sum', 'gt_joint_sum', 'match_part_sum', 'match_joint_sum', 'M_num', 'MA_num', 'MAO_num']:
                 log.info(f'mean {key}: {round(np.mean(val), 4)}')
+                std_err = np.std(val) / np.sqrt(np.size(val))
+                log.info(f'std {key}: {round(std_err, 4)}')
 
         # recall, precision, f1    
         pred_part_sum = np.sum(eval_results['pred_part_sum'])
@@ -476,14 +482,15 @@ class Evaluation:
         log.info(f'all joint f1: {round(2*(joint_precision * joint_recall) / (joint_precision + joint_recall), 4)}')
 
         log.info(f'M joint recall: {round(M_recall, 4)}')
-        log.info(f'MA joint recall: {round(MA_recall, 4)}')
-        log.info(f'MAO joint recall: {round(MAO_recall, 4)}')
         log.info(f'M joint precision: {round(M_precision, 4)}')
-        log.info(f'MA joint precision: {round(MA_precision, 4)}')
-        log.info(f'MAO joint precision: {round(MAO_precision, 4)}')
-
         log.info(f'M F1: {round(2*(M_precision * M_recall) / (M_precision + M_recall), 4)}')
+
+        log.info(f'MA joint recall: {round(MA_recall, 4)}')
+        log.info(f'MA joint precision: {round(MA_precision, 4)}')
         log.info(f'MA F1: {round(2*(MA_precision * MA_recall) / (MA_precision + MA_recall), 4)}')
+
+        log.info(f'MAO joint recall: {round(MAO_recall, 4)}')
+        log.info(f'MAO joint precision: {round(MAO_precision, 4)}')
         log.info(f'MAO F1: {round(2*(MAO_precision * MAO_recall) / (MAO_precision + MAO_recall), 4)}')
 
 
@@ -508,9 +515,9 @@ def main(cfg: DictConfig):
             input_path = cfg.paths.preprocess.output.test
             output_path = nms_output_cfg.test
 
-        raw_h5file = '/local-scratch/localhome/yma50/Development/shape2motion-pytorch/dataset/multiscan/val.h5'
-        # evaluator.evaluate(input_path, output_path, raw_h5file)
-        evaluator.evaluate(input_path, output_path)
+        raw_h5file = '/local-scratch/localhome/yma50/Development/shape2motion-pytorch/dataset/multiscan/test.h5'
+        evaluator.evaluate(input_path, output_path, raw_h5file)
+        # evaluator.evaluate(input_path, output_path)
 
 if __name__ == '__main__':
     start = time()
@@ -520,4 +527,3 @@ if __name__ == '__main__':
 
     duration_time = utils.duration_in_hours(end - start)
     log.info(f'Evaluation: Total time duration {duration_time}')
-

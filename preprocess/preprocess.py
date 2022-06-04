@@ -118,8 +118,8 @@ class PreProcess:
             # self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
             #                             os.path.join(self.output_cfg.path, self.output_cfg.train_data))
 
-            self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
-                                        os.path.join(self.output_cfg.path, self.output_cfg.val_data))
+            # self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
+            #                             os.path.join(self.output_cfg.path, self.output_cfg.val_data))
 
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.test_set),
                                         os.path.join(self.output_cfg.path, self.output_cfg.test_data))

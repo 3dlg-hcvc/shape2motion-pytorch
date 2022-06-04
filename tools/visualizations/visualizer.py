@@ -3,6 +3,7 @@ from enum import Enum
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import trimesh
+import pymeshlab
 import os
 
 from tools.visualizations import Renderer
@@ -14,10 +15,38 @@ class JointType(Enum):
     TRANS = 2
     BOTH = 3
 
+Green = np.array([
+    [44, 160, 44, 255],
+    [152, 223, 138, 255],
+]) / 255.0
+
+Yellow = np.array([
+    [255, 127, 14, 255],
+    [255, 187, 120, 255],
+]) / 255.0
+
+Red = np.array([
+    [214, 39, 40, 255],
+    [255, 152, 150, 255],
+]) / 255.0
+
 class Visualizer(Renderer):
     def __init__(self, vertices=None, faces=None, colors=None, normals=None, mask=None):
         super().__init__(vertices, faces, colors, normals, mask)
         pass
+
+    def get_curling_arrow(color):
+        arrow_ply = '/localhome/yma50/Documents/blender/arrow.ply'
+
+        ms = pymeshlab.MeshSet()
+        ms.load_new_mesh(arrow_ply)
+        m = ms.current_mesh()
+        vertices = m.vertex_matrix()
+        normals = m.vertex_normal_matrix()
+        faces = m.face_matrix()
+
+        mesh = trimesh.Trimesh(vertices, faces=faces, vertex_colors=color, vertex_normals=normals)
+        return mesh
 
     def view_stage1_input(self, instance_data):
         input_pts = instance_data['input_pts'][:]
@@ -61,7 +90,7 @@ class Visualizer(Renderer):
             elif joint_type == JointType.BOTH.value:
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
 
-        viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        # viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
         viewer.show()
 
         viewer.reset()
@@ -71,7 +100,7 @@ class Visualizer(Renderer):
         joint_direction_reg = joint_direction_reg[anchor_pts_idx.astype(bool), :]
         joint_directions = joint_all_directions[joint_direction_cat.astype(int), :] + joint_direction_reg
 
-        viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.2)
+        # viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.2)
         viewer.show()
 
     def view_stage1_output(self, pred_cfg, proposal__downsample=1, joint_downsample=2):
@@ -272,6 +301,21 @@ class Visualizer(Renderer):
         gt_viewer.add_trimesh_arrows([joint_origins], [joint_directions], colors=joint_colors, length=0.4)
         gt_viewer.show(window_name='pred', non_block=True)
 
+    def compute_angle(self, pred_joint_dir, gt_joint_dir):
+        a1 = np.arccos(
+            np.clip(np.dot(pred_joint_dir, gt_joint_dir) / (LA.norm(pred_joint_dir) * LA.norm(gt_joint_dir)), -1, 1))
+        a2 = np.arccos(
+            np.clip(np.dot(-pred_joint_dir, gt_joint_dir) / (LA.norm(-pred_joint_dir) * LA.norm(gt_joint_dir)), -1, 1))
+        return min(a1, a2)
+
+    def compute_dist(self, pred_origin, gt_joint):
+        q1 = gt_joint[:3]
+        q2 = gt_joint[:3] + gt_joint[3:6]
+        vec1 = q2 - q1
+        vec2 = pred_origin - q1
+        dist = LA.norm(np.cross(vec1, vec2)) / LA.norm(vec1)
+        return dist
+
     def view_evaluation_result(self, gt_cfg, pred_cfg, output_dir='viz'):
         part_proposals = gt_cfg.part_proposals
         joints = gt_cfg.joints
@@ -287,15 +331,24 @@ class Visualizer(Renderer):
         
         joint_types = joints[:, 6]
         joint_colors = np.zeros((len(joint_types), 4))
+        head_colors = np.zeros((len(joint_types), 4))
+        curls_colors = np.zeros((len(joint_types), 4))
+        curls_head_colors = np.zeros((len(joint_types), 4))
+        origin_colors = np.zeros((len(joint_types), 4))
         for i, joint_type in enumerate(joint_types):
-            if joint_type == JointType.ROT.value:
-                joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
-            elif joint_type == JointType.TRANS.value:
-                joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
-            elif joint_type == JointType.BOTH.value:
-                joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+            # if joint_type == JointType.ROT.value:
+            #     joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
+            # elif joint_type == JointType.TRANS.value:
+            #     joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
+            # elif joint_type == JointType.BOTH.value:
+            # joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
+            joint_colors[i] = Green[0]
+            head_colors[i] = Green[1]
+            curls_colors[i] = Green[0]
+            curls_head_colors[i] = Green[1]
+            origin_colors[i] = Green[0]
 
-        gt_arrows = gt_viewer.get_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        gt_arrows = gt_viewer.get_trimesh_arrows(joint_origins, joint_directions, origin_colors=origin_colors, colors=joint_colors, head_colors=head_colors, length=0.4, joint_types=joint_types, curls_colors=curls_colors, curls_head_colors=curls_head_colors)
         # gt_viewer.show(window_name=f'gt')
         io.ensure_dir_exists(os.path.join(output_dir, 'gt'))
         arrows = trimesh.util.concatenate(gt_arrows)
@@ -319,25 +372,52 @@ class Visualizer(Renderer):
         gt_joint_directions = gt_joints[:, 3:6]
         gt_joint_directions = gt_joint_directions / np.linalg.norm(gt_joint_directions, axis=1).reshape(-1, 1)
         
-        joint_types = joints[:, 6] 
-        joint_colors = np.zeros((len(joint_types), 4))
-        for i, joint_type in enumerate(joint_types):
-            if joint_type == JointType.ROT.value:
-                joint_colors[i] = [1.0, 0.0, 0.0, 0.8]
-            elif joint_type == JointType.TRANS.value:
-                joint_colors[i] = [0.0, 0.0, 1.0, 0.8]
-            elif joint_type == JointType.BOTH.value:
-                joint_colors[i] = [0.0, 1.0, 0.0, 0.8]
-
-        pred_arrows = pred_viewer.get_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        # joint_types = joints[:, 6] 
+        # joint_colors = np.zeros((len(joint_types), 4))
+        # for i, joint_type in enumerate(joint_types):
+        #     if joint_type == JointType.ROT.value:
+        #         joint_colors[i] = [1.0, 0.0, 0.0, 0.8]
+        #     elif joint_type == JointType.TRANS.value:
+        #         joint_colors[i] = [0.0, 0.0, 1.0, 0.8]
+        #     elif joint_type == JointType.BOTH.value:
+        #         joint_colors[i] = [0.0, 1.0, 0.0, 0.8]
         
         joint_types = gt_joints[:, 6]
         joint_colors = np.zeros((len(joint_types), 4))
+        head_colors = np.zeros((len(joint_types), 4))
+        curls_colors = np.zeros((len(joint_types), 4))
+        curls_head_colors = np.zeros((len(joint_types), 4))
+        origin_colors = np.zeros((len(joint_types), 4))
         for i, joint_type in enumerate(joint_types):
-            joint_colors[i] = [0.0, 1.0, 0.0, 0.5]
-        gt_arrows = pred_viewer.get_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
+            if self.compute_angle(joint_directions[i], gt_joint_directions[i]) < 5.0 / 180 * np.pi:
+                joint_colors[i] = Green[0]
+                head_colors[i] = Green[1]
+                curls_colors[i] = Green[0]
+                curls_head_colors[i] = Green[1]
+            elif self.compute_angle(joint_directions[i], gt_joint_directions[i]) < 10.0 / 180 * np.pi:
+                joint_colors[i] = Yellow[0]
+                head_colors[i] = Yellow[1]
+                curls_colors[i] = Yellow[0]
+                curls_head_colors[i] = Yellow[1]
+            else:
+                joint_colors[i] = Red[0]
+                head_colors[i] = Red[1]
+                curls_colors[i] = Red[0]
+                curls_head_colors[i] = Red[1]
 
-        arrows = trimesh.util.concatenate(pred_arrows + gt_arrows)
+            md = self.compute_dist(joint_origins[i], np.concatenate((gt_joint_origins[i], gt_joint_directions[i])))
+            scale = np.linalg.norm(np.amax(self.vertices, axis=0) - np.amin(self.vertices, axis=0))
+            if md < scale * 0.125:
+                origin_colors[i] = Green[0]
+            elif md < scale * 0.25:
+                origin_colors[i] = Yellow[0]
+            else:
+                origin_colors[i] = Red[0]
+
+        # gt_arrows = pred_viewer.get_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
+        pred_arrows = pred_viewer.get_trimesh_arrows(joint_origins, joint_directions, origin_colors=origin_colors, colors=joint_colors, head_colors=head_colors, length=0.4, joint_types=joint_types, curls_colors=curls_colors, curls_head_colors=curls_head_colors)
+
+        arrows = trimesh.util.concatenate(pred_arrows)
         io.ensure_dir_exists(os.path.join(output_dir, 'pred'))
         arrows.export(os.path.join(output_dir, 'pred', f'{object_name}_arrows.ply'))
         # pred_viewer.show(window_name=f'pred')
