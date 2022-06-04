@@ -8,15 +8,16 @@ from tools.utils.constant import Stage
 
 from time import time
 
+
 class Shape2Motion(nn.Module):
-    def __init__(self, stage, device, num_points):
+    def __init__(self, stage, device, num_points, num_channels):
         super().__init__()
         self.stage = Stage[stage] if isinstance(stage, str) else stage
         self.device = device
-        self.epsilon = None
+        self.epsilon = 1e-9
 
         # Define the shared PN++
-        self.backbone = PointNet2()
+        self.backbone = PointNet2(num_channels)
 
         if self.stage == Stage.stage2:
             for param in self.backbone.parameters():
@@ -42,9 +43,9 @@ class Shape2Motion(nn.Module):
 
                 for param in self.simmat_feat.parameters():
                     param.requires_grad = False
-        
-        if self.stage == Stage.stage1:    
-            #task1: key_point
+
+        if self.stage == Stage.stage1:
+            # task1: key_point
             self.feat1 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -52,7 +53,7 @@ class Shape2Motion(nn.Module):
             )
             self.anchor_pts_layer = nn.Conv1d(128, 2, kernel_size=1, padding=0)
 
-            #task2_1: joint_direction_category
+            # task2_1: joint_direction_category
             self.feat2_1 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -60,7 +61,7 @@ class Shape2Motion(nn.Module):
             )
             self.joint_direction_cat_layer = nn.Conv1d(128, 15, kernel_size=1, padding=0)
 
-            #task2_2: joint_direction_regression
+            # task2_2: joint_direction_regression
             self.feat2_2 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -68,7 +69,7 @@ class Shape2Motion(nn.Module):
             )
             self.joint_direction_reg_layer = nn.Conv1d(128, 3, kernel_size=1, padding=0)
 
-            #task_3: joint_origin_regression
+            # task_3: joint_origin_regression
             self.feat3 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -76,7 +77,7 @@ class Shape2Motion(nn.Module):
             )
             self.joint_origin_reg_layer = nn.Conv1d(128, 3, kernel_size=1, padding=0)
 
-            #task_4: joint_type
+            # task_4: joint_type
             self.feat4 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -84,14 +85,14 @@ class Shape2Motion(nn.Module):
             )
             self.joint_type_layer = nn.Conv1d(128, 4, kernel_size=1, padding=0)
 
-            #task_5: similar matrix
+            # task_5: similar matrix
             self.feat5 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
                 nn.ReLU(True)
             )
 
-            #task_6: confidence
+            # task_6: confidence
             self.feat6 = nn.Sequential(
                 nn.Conv1d(128, 128, kernel_size=1, padding=0),
                 nn.BatchNorm1d(128),
@@ -133,7 +134,7 @@ class Shape2Motion(nn.Module):
             self.motion_score_layer = nn.Conv1d(256, 1, kernel_size=1, padding=0)
 
         elif self.stage == Stage.stage3:
-            self.dynamic_backbone = PointNet2()
+            self.dynamic_backbone = PointNet2(num_channels)
 
             # static branch
             self.static_feat = nn.Sequential(
@@ -167,7 +168,7 @@ class Shape2Motion(nn.Module):
             self.regression_layer = nn.Sequential(
                 nn.Conv1d(128, 6, kernel_size=num_points, padding=0),
                 nn.BatchNorm1d(6),
-                # nn.ReLU(True)
+                nn.ReLU(True)
             )
         else:
             raise NotImplementedError(f'No implementation for the stage {self.stage.value}')
@@ -232,7 +233,7 @@ class Shape2Motion(nn.Module):
 
             part_proposal = gt['part_proposal']
             anchor_mask = gt['anchor_mask']
-            
+
             num_points = part_proposal.size(dim=1)
             part_proposal = torch.unsqueeze(part_proposal, -1)
             part_proposal = part_proposal.repeat(1, 1, 512).float()
@@ -243,7 +244,7 @@ class Shape2Motion(nn.Module):
             all_feat = torch.cat((motion_feat_1, simmat_feat_expand), axis=2)
 
             anchor_mask = torch.unsqueeze(anchor_mask, -1)
-            anchor_mask = anchor_mask.repeat(1,1,1024).float()
+            anchor_mask = anchor_mask.repeat(1, 1, 1024).float()
             anchor_feat = all_feat * anchor_mask
 
             anchor_feat_1 = self.feat1(anchor_feat.transpose(1, 2))
@@ -257,9 +258,9 @@ class Shape2Motion(nn.Module):
                 'motion_scores': pred_motion_scores
             }
         elif self.stage == Stage.stage3:
-            all_feat = torch.cat((dynamic_features, static_features), axis=1)
+            all_feat = torch.cat((static_features, dynamic_features), axis=1)
             all_feat, _ = torch.max(all_feat, axis=1)
-            
+
             proposal_feat = self.proposal_feat(all_feat)
             pred_proposal = self.proposal_layer(proposal_feat)
             regression_feat = self.regression_feat(all_feat)
@@ -280,7 +281,7 @@ class Shape2Motion(nn.Module):
             # pred['pred_anchor_pts']: B*N*3K, gt['npcs_per_point']: B*N*3, gt_seg_onehot: B*N*K
             anchor_pts_loss, anchor_pts_recall, anchor_pts_accuracy = loss.compute_anchor_pts_loss(
                 pred['anchor_pts'],
-                gt['anchor_pts'],
+                gt['anchor_pts'].float(),
                 mask=mask
             )
 
@@ -309,7 +310,7 @@ class Shape2Motion(nn.Module):
             )
 
             sim_thresh = 80.0
-            gt_simmat = gt['simmat']
+            gt_simmat = gt['simmat'].float()
             tmp_neg_simmat = 1 - gt_simmat
             batch_size = gt_simmat.size(dim=0)
             mat_dim = gt_simmat.size(dim=1)
@@ -321,18 +322,15 @@ class Shape2Motion(nn.Module):
                 pred['simmat'],
                 gt_simmat,
                 neg_simmat,
-                threshold = sim_thresh
+                threshold=sim_thresh
             )
 
-            # if self.epsilon is None:
-            self.epsilon = torch.ones(gt_simmat.size(dim=0), gt_simmat.size(dim=1)).float() * 1e-6
-            self.epsilon = self.epsilon.to(self.device)
             confidence_loss = loss.compute_confidence_loss(
                 pred['confidence'],
                 pred['simmat'],
                 gt_simmat,
-                threshold = sim_thresh,
-                epsilon = self.epsilon
+                threshold=sim_thresh,
+                epsilon=self.epsilon
             )
 
             loss_dict = {
@@ -353,9 +351,6 @@ class Shape2Motion(nn.Module):
             gt_motion_scores = torch.unsqueeze(gt['motion_scores'], -1)
             pred_motion_scores = torch.unsqueeze(pred['motion_scores'], -1)
 
-            if self.epsilon is None:
-                self.epsilon = torch.ones(anchor_mask.size(dim=0), 1).float() * 1e-6
-                self.epsilon = self.epsilon.to(self.device)
             motion_scores_loss = loss.compute_motion_scores_loss(
                 pred_motion_scores,
                 gt_motion_scores,
@@ -367,14 +362,9 @@ class Shape2Motion(nn.Module):
                 'motion_scores_loss': motion_scores_loss,
             }
         elif self.stage == Stage.stage3:
-            if self.epsilon is None:
-                self.epsilon = torch.ones(gt['part_proposal'].size(dim=0), 1).float() * 1e-6
-                self.epsilon = self.epsilon.to(self.device)
-            
-
             part_proposal_loss, part_proposal_accuracy, iou = loss.compute_part_proposal_loss(
                 pred['part_proposal'],
-                gt['part_proposal'],
+                gt['part_proposal'].float(),
                 self.epsilon
             )
             motion_regression_loss = loss.compute_motion_regression_loss(
@@ -388,5 +378,5 @@ class Shape2Motion(nn.Module):
                 'iou': iou,
                 'motion_regression_loss': motion_regression_loss
             }
-        
+
         return loss_dict

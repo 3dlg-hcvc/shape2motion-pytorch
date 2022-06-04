@@ -43,7 +43,7 @@ class Shape2MotionTrainer:
         self.log.info(f'Below is the network structure:\n {self.model}')
 
         self.optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr, betas=(0.9, 0.99)
+            filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.train.lr
         )
 
         self.data_path = data_path
@@ -51,7 +51,6 @@ class Shape2MotionTrainer:
 
         self.train_loader = None
         self.test_loader = None
-        self.init_data_loader(self.cfg.eval_only)
 
         self.postprocess = None
         if self.stage == Stage.stage1:
@@ -62,46 +61,36 @@ class Shape2MotionTrainer:
             self.postprocess = PostStage3(self.cfg.postprocess)
 
     def build_model(self):
-        model = Shape2Motion(self.stage, self.device, self.cfg.num_points)
+        model = Shape2Motion(self.stage, self.device, self.cfg.num_points, self.cfg.num_channels)
         return model
 
     def init_data_loader(self, eval_only):
-        if not eval_only:
-            self.log.info(f'Train on {self.data_path["train"]}, validate on {self.data_path["test"]}')
-            self.train_loader = torch.utils.data.DataLoader(
-                Shape2MotionDataset(
-                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
-                ),
-                batch_size=self.cfg.train.batch_size,
-                shuffle=True,
-                num_workers=self.cfg.num_workers,
-                pin_memory=True
-            )
+        train_shuffle = not eval_only
+        batch_size = self.cfg.train.batch_size if not eval_only else self.cfg.test.batch_size
+        data_augmentation = self.cfg.augmentation if not eval_only else None
+        self.log.info(f'Train on {self.data_path["train"]}, validate on {self.data_path["test"]}')
+        # self.train_loader = torch.utils.data.DataLoader(
+        #     Shape2MotionDataset(
+        #         self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage,
+        #         augmentation_cfg=data_augmentation
+        #     ),
+        #     batch_size=batch_size,
+        #     shuffle=train_shuffle,
+        #     num_workers=self.cfg.num_workers,
+        #     pin_memory=True
+        # )
 
-            self.log.info(f'Num {len(self.train_loader)} batches in train loader')
-        else:
-            self.train_loader = torch.utils.data.DataLoader(
-                Shape2MotionDataset(
-                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage
-                ),
-                batch_size=self.cfg.test.batch_size,
-                shuffle=False,
-                num_workers=self.cfg.num_workers,
-                pin_memory=True
-            )
-
-            self.log.info(f'Num {len(self.train_loader)} batches in train loader')
+        # self.log.info(f'Num {len(self.train_loader)} batches in train loader')
 
         self.test_loader = torch.utils.data.DataLoader(
             Shape2MotionDataset(
                 self.data_path['test'], num_points=self.cfg.num_points, stage=self.stage
             ),
-            batch_size=self.cfg.test.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=self.cfg.num_workers,
             pin_memory=True
         )
-        self.log.info(f'Num {len(self.test_loader)} batches in test loader')
 
     def train_epoch(self, epoch):
         self.log.info(f'>>>>>>>>>>>>>>>> Train Epoch {epoch} >>>>>>>>>>>>>>>>')
@@ -212,7 +201,7 @@ class Shape2MotionTrainer:
                 pred = self.model(input_pts, gt)
                 if save_results:
                     self.postprocess.process(pred, input_pts, gt, id)
-                
+
                 loss_dict = self.model.losses(pred, gt)
                 loss_weight = self.cfg.train.loss_weight
                 loss = torch.tensor(0.0, device=self.device)
@@ -248,6 +237,8 @@ class Shape2MotionTrainer:
         return val_loss
 
     def train(self, start_epoch=0):
+        self.init_data_loader(False)
+
         self.model.train()
         self.writer = SummaryWriter(self.train_cfg.output_dir)
 
@@ -289,8 +280,9 @@ class Shape2MotionTrainer:
     def get_latest_model_path(self, with_best=False, stage_dir=None):
         if stage_dir is None or not io.folder_exist(stage_dir):
             stage_dir = os.path.dirname(self.cfg.paths.path)
-        
-        folder, filename = utils.get_latest_file_with_datetime(stage_dir, '', subdir=self.train_cfg.folder_name, ext='.pth')
+
+        folder, filename = utils.get_latest_file_with_datetime(stage_dir, '', subdir=self.train_cfg.folder_name,
+                                                               ext='.pth')
         model_dir = os.path.join(stage_dir, folder, self.train_cfg.folder_name)
         model_path = os.path.join(model_dir, filename)
         if with_best:
@@ -298,6 +290,8 @@ class Shape2MotionTrainer:
         return model_path
 
     def test(self, inference_model=None):
+        self.init_data_loader(True)
+
         if not inference_model or not io.file_exist(inference_model):
             self.log.info(f'Loading from the most recently saved model')
             inference_model = self.get_latest_model_path(with_best=self.cfg.test.with_best)
@@ -320,12 +314,14 @@ class Shape2MotionTrainer:
 
         # Save the prediction results into hdf5
         data_sets = ['train', 'test']
-        # data_sets = ['test']
-        for data_set in data_sets:
+        if self.cfg.eval_only:
+            data_sets = ['test']
+        for data_set in              data_sets:
             if data_set == 'train':
                 output_path = os.path.join(self.test_cfg.output_dir, f'{data_set}_' + self.test_cfg.inference_result)
             else:
-                output_path = os.path.join(self.test_cfg.output_dir, f'{self.cfg.test.split}_' + self.test_cfg.inference_result)
+                output_path = os.path.join(self.test_cfg.output_dir,
+                                           f'{self.cfg.test.split}_' + self.test_cfg.inference_result)
             self.postprocess.set_datapath(self.data_path[data_set], output_path, data_set)
             self.eval_epoch(epoch, save_results=True, data_set=data_set)
             self.postprocess.stop()

@@ -15,6 +15,7 @@ from tools.visualizations import Visualizer
 
 log = logging.getLogger('post_stage2')
 
+
 class PostStage2Impl:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -75,13 +76,15 @@ class PostStage2Impl:
             log.warn(f'{instance_name} has bad motion type')
             return
 
-        assert len(self.move_angle_params) == len(self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
-        moved_pcds = np.zeros((3, num_points, 6))
+        assert len(self.move_angle_params) == len(
+            self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
+        moved_pcds = np.zeros((3, num_points, 9))
         for i in range(len(self.move_angle_params)):
             move_angle = float(self.move_angle_params[i]) / 180.0 * np.pi
             diag_length = LA.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
             move_trans = self.move_trans_params[i] * diag_length
-            move_pts = self.move_pts_with_joint(input_xyz[pred_part_proposal, :], good_motion[:3], good_motion[3:6], good_motion[-1], move_angle, move_trans)
+            move_pts = self.move_pts_with_joint(input_xyz[pred_part_proposal, :], good_motion[:3], good_motion[3:6],
+                                                good_motion[-1], move_angle, move_trans)
             tmp_pts = np.copy(input_pts)
             tmp_pts[pred_part_proposal, :3] = move_pts
             moved_pcds[i, :, :] = tmp_pts
@@ -94,6 +97,7 @@ class PostStage2Impl:
         output_data['moved_pcds'] = moved_pcds
         output_data['pred_motion_scores'] = data.pred_motion_scores
         output_data['good_motion'] = good_motion
+        output_data['anchor_mask'] = anchor_mask
         return output_data
 
 
@@ -139,7 +143,7 @@ class PostStage2:
             tmp_data['pred_part_proposal'] = part_proposal[b]
             tmp_data['pred_motions'] = object_data['pred_motions'][:]
             tmp_data['pred_motion_scores'] = pred_motion_scores[b]
-            
+
             tmp_data['gt_motion'] = object_data['gt_motions'][:][proposal_idx]
             tmp_data['gt_part_proposal'] = object_data['gt_part_proposals'][:][proposal_idx]
             tmp_data['gt_motion_scores'] = gt_motion_scores[b]
@@ -165,10 +169,10 @@ class PostStage2:
 
                 viz = Visualizer(tmp_data['input_pts'][:, :3])
                 viz.view_stage2_output(gt_cfg, pred_cfg)
-        
+
         pool = Pool(processes=self.num_workers)
         proc_impl = PostStage2Impl(self.cfg)
-        jobs = [pool.apply_async(proc_impl, args=(i,data,)) for i, data in enumerate(stage2_data)]
+        jobs = [pool.apply_async(proc_impl, args=(i, data,)) for i, data in enumerate(stage2_data)]
         pool.close()
         pool.join()
         batch_output = [job.get() for job in jobs]
@@ -187,14 +191,34 @@ class PostStage2:
             moved_pcds = output_data['moved_pcds']
             good_motion = output_data['good_motion']
             pred_motion_scores = output_data['pred_motion_scores']
-            
+            anchor_mask = output_data['anchor_mask']
+
+            # if self.debug:
+            #     gt_cfg = {}
+            #     gt_cfg['input_pts'] = moved_pcds
+            #     gt_cfg['part_proposal'] = part_proposal
+            #     gt_cfg['motions'] = good_motion
+            #     gt_cfg['scores'] = pred_motion_scores
+            #     gt_cfg['anchor_mask'] = anchor_mask
+            #
+            #     viz = Visualizer()
+            #     viz.view_stage3_input(gt_cfg)
+
             h5instance = self.output_h5.require_group(instance_name)
-            h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
-            h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal, compression='gzip')
-            h5instance.create_dataset('motion_regression', shape=motion_regression.shape, data=motion_regression, compression='gzip')
-            h5instance.create_dataset('moved_pcds', shape=moved_pcds.shape, data=moved_pcds, compression='gzip')
-            h5instance.create_dataset('pred_motion_scores', shape=pred_motion_scores.shape, data=pred_motion_scores, compression='gzip')
-            h5instance.create_dataset('good_motion', shape=good_motion.shape, data=good_motion, compression='gzip')
+            h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
+                                      compression='gzip')
+            h5instance.create_dataset('part_proposal', shape=part_proposal.shape, data=part_proposal.astype(np.bool),
+                                      compression='gzip')
+            h5instance.create_dataset('motion_regression', shape=motion_regression.shape,
+                                      data=motion_regression.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('moved_pcds', shape=moved_pcds.shape, data=moved_pcds.astype(np.float32),
+                                      compression='gzip')
+            h5instance.create_dataset('pred_motion_scores', shape=pred_motion_scores.shape,
+                                      data=pred_motion_scores.astype(np.float32), compression='gzip')
+            h5instance.create_dataset('anchor_mask', shape=anchor_mask.shape, data=anchor_mask.astype(np.bool),
+                                      compression='gzip')
+            h5instance.create_dataset('good_motion', shape=good_motion.shape, data=good_motion.astype(np.float32),
+                                      compression='gzip')
 
     def stop(self):
         self.output_h5.close()

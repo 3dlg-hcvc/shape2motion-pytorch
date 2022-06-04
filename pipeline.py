@@ -32,6 +32,8 @@ def main(cfg: DictConfig):
     OmegaConf.update(cfg, "paths.dataset_dir", io.to_abs_path(cfg.paths.dataset_dir, get_original_cwd()))
     OmegaConf.update(cfg, "paths.result_dir", io.to_abs_path(cfg.paths.result_dir, get_original_cwd()))
 
+    utils.set_random_seed(cfg.network.random_seed)
+
     if cfg.preprocess.run:
         assert io.folder_exist(cfg.paths.preprocess.input_dir), "Dataset directory doesn't exist"
         io.ensure_dir_exists(cfg.paths.preprocess.output_dir)

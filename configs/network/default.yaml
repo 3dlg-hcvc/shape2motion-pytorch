@@ -8,8 +8,15 @@ device: "cuda:0"
 eval_only: false
 random_seed: 1
 num_points: 4096
+num_channels: 6
 
-test_split: "val"
+augmentation:
+  jitter: false
+  flip: false
+  rotate: false
+  color: false
+
+test_split: "test"
 
 stage1:
   name: "stage1"
@@ -21,6 +28,8 @@ stage1:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
+  augmentation: "${network.augmentation}"
 
   train:
     continuous: false
@@ -29,7 +38,7 @@ stage1:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 500
     lr: 0.001
     batch_size: 8
 
@@ -47,7 +56,7 @@ stage1:
     split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 8
+    batch_size: 1
     with_best: false
 
   postprocess: ${postprocess.stage1}
@@ -62,6 +71,8 @@ stage2:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
+  augmentation: "${network.augmentation}"
 
   train:
     continuous: false
@@ -72,7 +83,7 @@ stage2:
 
     max_epochs: 100
     lr: 0.001
-    batch_size: 32
+    batch_size: 16
 
     loss_weight:
       motion_scores_loss: 1.0
@@ -81,7 +92,7 @@ stage2:
     split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 16
+    batch_size: 1
     with_best: false
   
   model:
@@ -99,6 +110,8 @@ stage3:
   debug: "${network.debug}"
   num_points: "${network.num_points}"
   num_workers: "${network.num_workers}"
+  num_channels: "${network.num_channels}"
+  augmentation: "${network.augmentation}"
 
   train:
     continuous: false
@@ -107,9 +120,9 @@ stage3:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 200
+    max_epochs: 100
     lr: 0.001
-    batch_size: 12
+    batch_size: 8
 
     loss_weight:
       part_proposal_loss: 1.0
@@ -119,7 +132,7 @@ stage3:
     split: "${network.test_split}"
     input_data: path
     inference_model: path
-    batch_size: 8
+    batch_size: 1
     with_best: false
 
   postprocess: ${postprocess.stage3}

@@ -6,6 +6,7 @@ import imageio
 import time
 import numpy as np
 from PIL import Image
+import pymeshlab
 
 from tools.utils import io
 from matplotlib import cm
@@ -30,10 +31,12 @@ class Renderer:
         self.point_cloud_list = []
         self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
+        self.vertex_normals = None
+        self.caption = None
+        self.point_size = 8
+
         if vertices is not None:
             self.add_geometry(vertices, faces, colors, normals, mask)
-        self.caption = None
-        self.point_size = 10
 
     head_body_ratio = 1.0 / 4
 
@@ -48,27 +51,36 @@ class Renderer:
         self.point_cloud_list = []
         self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
+        self.vertex_normals = None
 
     def add_caption(self, caption):
         self.caption = caption
 
     @staticmethod
-    def rgba_by_index(index, cmap_name='Set1', alpha=1.0):
-        if index > 8:
-            index = index % 9
-        rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
-        rgba[-1] = alpha
-        return rgba
+    def rgba_by_index(index, cmap_name='Set2', alpha=1.0):
+        colors = np.array([
+            [227, 119, 194, 255],
+            [148, 103, 189, 255],
+            [31, 119, 180, 255],
+            [140, 86, 75, 255],
+            [188, 189, 34, 255],
+            [23, 190, 207, 255],
+        ]) / 255.0
+        if index > 5:
+            index = index % 6
+        # rgba = np.asarray(list(cm.get_cmap(cmap_name)(index)))
+        # rgba[-1] = alpha
+        return colors[index]
 
     @staticmethod
-    def colors_from_mask(mask, empty_first=False):
+    def colors_from_mask(mask, empty_first=True, color_map='Set2'):
         unique_val = np.sort(np.unique(mask))
         colors = np.empty([mask.shape[0], 4])
         for i, val in enumerate(unique_val):
             if empty_first and i == 0:
                 rgba = [0.5, 0.5, 0.5, 0.5]
             else:
-                rgba = Renderer.rgba_by_index(i)
+                rgba = Renderer.rgba_by_index(val, color_map)
             colors[mask == val] = rgba
         return colors
 
@@ -78,12 +90,14 @@ class Renderer:
 
     def add_geometry(self, vertices, faces=None, colors=None, normals=None, mask=None):
         if colors is None and mask is not None:
-            colors = Renderer.colors_from_mask(mask)
+            colors = Renderer.colors_from_mask(mask, empty_first=True)
         if faces is not None:
-            geo = trimesh.base.Trimesh(vertices, faces=faces, vertex_colors=colors)
+            geo = trimesh.base.Trimesh(vertices, faces=faces, vertex_colors=colors, vertex_normals=normals)
             self.add_trimesh(geo)
         else:
-            geo = trimesh.points.PointCloud(vertices, vertex_colors=colors, vertex_normals=normals)
+            geo = trimesh.points.PointCloud(vertices, vertex_colors=colors)
+            self.vertex_normals = normals if self.vertex_normals is None else np.concatenate(
+                (self.vertex_normals, normals), axis=0)
             self.add_point_cloud(geo)
 
     def add_trimesh(self, mesh):
@@ -105,18 +119,44 @@ class Renderer:
         self.point_cloud = trimesh.points.PointCloud(all_vertices, colors=all_colors)
 
     @staticmethod
-    def draw_arrow(color=None, radius=0.01, length=0.5):
+    def draw_arrow(color=None, head_color=None, radius=0.01, length=0.5):
         if color is None:
-            color = Renderer.rgba_by_index(0)
+            color = [1.0, 0.0, 0.0, 1.0]
         head_length = length * Renderer.head_body_ratio
         body_length = length - head_length
         head_transformation = np.eye(4)
         head_transformation[:3, 3] += [0, 0, body_length / 2.0]
-        head = trimesh.creation.cone(3 * radius, head_length, sections=10, transform=head_transformation)
-        body = trimesh.creation.cylinder(radius, body_length, sections=10)
-        arrow = head + body
-        arrow.visual.vertex_colors = color
+        head = trimesh.creation.cone(3 * radius, head_length, sections=40, transform=head_transformation)
+        head.visual.vertex_colors = head_color
+        body = trimesh.creation.cylinder(radius, body_length, sections=40)
+        body.visual.vertex_colors = color
+        arrow = trimesh.util.concatenate([head, body])
         return arrow
+
+    @staticmethod
+    def get_curling_arrow(color, head_color):
+        arrow_ply = '/localhome/yma50/Documents/blender/arrow.ply'
+        arrow_head_ply = '/localhome/yma50/Documents/blender/arrow_head.ply'
+
+        ms = pymeshlab.MeshSet()
+        ms.load_new_mesh(arrow_ply)
+        m = ms.current_mesh()
+        vertices = m.vertex_matrix()
+        normals = m.vertex_normal_matrix()
+        faces = m.face_matrix()
+
+        mesh = trimesh.Trimesh(vertices, faces=faces, vertex_colors=color, vertex_normals=normals)
+
+        ms = pymeshlab.MeshSet()
+        ms.load_new_mesh(arrow_head_ply)
+        m = ms.current_mesh()
+        vertices = m.vertex_matrix()
+        normals = m.vertex_normal_matrix()
+        faces = m.face_matrix()
+
+        mesh_head = trimesh.Trimesh(vertices, faces=faces, vertex_colors=head_color, vertex_normals=normals)
+
+        return trimesh.util.concatenate([mesh, mesh_head])
 
     def add_arrows(self, positions, axes, color=None, radius=0.01, length=0.5):
         log.debug('add arrow')
@@ -130,7 +170,7 @@ class Renderer:
         arrows = pyrender.Mesh.from_trimesh(arrow, poses=transformations)
         self.scene.add(arrows)
 
-    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5):
+    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5, curl=True):
         log.debug('add trimesh arrow')
         arrows = []
         z_axis = [0, 0, 1]
@@ -147,7 +187,45 @@ class Renderer:
             arrow = Renderer.draw_arrow(color, radius, arrow_length)
             arrow.apply_transform(transformation)
             arrows.append(arrow)
+            if curl:
+                curling_arrow = Renderer.get_curling_arrow([255, 0, 0])
+                scale = np.diag([0.1, 0.1, 0.1, 1.0])
+                curling_arrow.apply_transform(scale)
+                curling_arrow.apply_transform(transformation)
+                arrows.append(curling_arrow)
         self.trimesh_list += arrows
+
+    def get_trimesh_arrows(self, positions, axes, origin_colors=[None], colors=[None], head_colors=[None], radius=0.02, length=0.5, joint_types=[None], curls_colors=None, curls_head_colors=None):
+        arrows = []
+        z_axis = [0, 0, 1]
+        length = np.linalg.norm(np.amax(self.vertices) - np.amin(self.vertices)) / 2.0
+        for i, pos in enumerate(positions):
+            arrow_length = length if isinstance(length, float) else length[i]
+            if arrow_length < 10e-6:
+                continue
+            transformation = trimesh.geometry.align_vectors(z_axis, axes[i])
+            transformation[:3, 3] += pos + axes[i] * (1 - Renderer.head_body_ratio) / 2 * arrow_length
+            if len(colors) != len(positions):
+                color = None
+            else:
+                color = colors[i]
+            arrow = Renderer.draw_arrow(color, head_colors[i], radius, arrow_length)
+            arrow.apply_transform(transformation)
+            arrows.append(arrow)
+            if joint_types[i] == 1:
+                curling_arrow = Renderer.get_curling_arrow(curls_colors[i], curls_head_colors[i])
+                scale = np.diag([0.1, 0.1, 0.1, 1.0])
+                curling_arrow.apply_transform(scale)
+                curling_arrow.apply_transform(transformation)
+                arrows.append(curling_arrow)
+                sphere = trimesh.creation.icosphere(subdivisions=4, radius=3*radius)
+                sphere.visual.vertex_colors = origin_colors[i]
+                sphere_transformation = np.eye(4)
+                sphere_transformation[:3, 3] = [0, 0, (-arrow_length + arrow_length * Renderer.head_body_ratio) / 2.0]
+                sphere.apply_transform(sphere_transformation)
+                sphere.apply_transform(transformation)
+                arrows.append(sphere)
+        return arrows
 
     def _merge_geometries(self):
         if len(self.trimesh_list) > 0:
@@ -168,7 +246,11 @@ class Renderer:
             log.debug('add point cloud to scene')
             rgb_color = self.point_cloud.colors.astype(float) / 255.0
             rgb_color[:, :3] = rgb_color[:, :3] * rgb_color[:, 3].reshape(-1, 1)
-            point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
+            if self.vertex_normals is None:
+                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
+            else:
+                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color,
+                                                        normals=self.vertex_normals)
             self.scene.add(point_cloud)
 
     def show(self, window_size=None, window_name='Default Renderer', non_block=False):
@@ -176,16 +258,18 @@ class Renderer:
         if window_size is None:
             window_size = [800, 600]
         if non_block:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
-                            caption=self.caption, run_in_thread=True)
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
+                                point_size=self.point_size,
+                                caption=self.caption, run_in_thread=True)
 
             time.sleep(1.0)
             v.close_external()
             while v.is_active:
                 pass
         else:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size,
-                            caption=self.caption)
+            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
+                                point_size=self.point_size,
+                                caption=self.caption)
 
     def _compute_initial_camera_pose(self, angle=0):
         centroid = self.scene.centroid
@@ -196,11 +280,11 @@ class Renderer:
         look_at_pos = centroid
         h_fov = np.pi / 6.0
         dist = scale / (1 * np.tan(h_fov))
-        camera_pos = dist * np.array([np.cos(angle), -np.sin(angle), 1.0]) + centroid
+        camera_pos = dist * np.array([np.cos(angle), np.sin(angle), 1.0]) + centroid
 
         forward = camera_pos - look_at_pos
         forward /= np.linalg.norm(forward)
-        world_up = np.array([0, 0, 1])
+        world_up = np.array([0, 1, 0])
         right = np.cross(world_up, forward)
         up = np.cross(forward, right)
 
@@ -222,11 +306,11 @@ class Renderer:
             z_near = DEFAULT_Z_NEAR
         else:
             z_near = min(self.scene.scale / 10.0, DEFAULT_Z_NEAR)
-        cam = pyrender.PerspectiveCamera(yfov=np.pi / 4.0, znear=z_near, zfar=z_far)
+        cam = pyrender.PerspectiveCamera(yfov=np.pi / 6.0, znear=z_near, zfar=z_far)
         cam_pose = self._compute_initial_camera_pose()
         cam_node = pyrender.Node(camera=cam, matrix=cam_pose)
         self.scene.add_node(cam_node)
-        
+
         if as_gif:
             io.ensure_dir_exists(os.path.dirname(fig_path))
             with imageio.get_writer(fig_path, mode='I', fps=10) as writer:

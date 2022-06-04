@@ -11,9 +11,11 @@ from types import SimpleNamespace
 from tools.utils import io
 from tools.visualizations import Visualizer
 
+
 class DatasetName(Enum):
     SHAPE2MOTION = 1
     MULTISCAN = 2
+
 
 class Mat2Hdf5Impl:
     def __init__(self, cfg):
@@ -30,7 +32,7 @@ class Mat2Hdf5Impl:
             filename = os.path.splitext(os.path.basename(filepath))[0]
             object_cat = os.path.basename(filename).split('_')[2]
             object_id_base = os.path.basename(filename).split('_')[-1]
-        
+
         data = sio.loadmat(filepath)['Training_data']
         data_info_list = []
 
@@ -39,17 +41,18 @@ class Mat2Hdf5Impl:
             for i in range(len(data)):
                 instance_data = data[i][0]
 
-                input_pts = instance_data['inputs_all'][0,0]
+                input_pts = instance_data['inputs_all'][0, 0]
 
-                anchor_pts = instance_data['core_position'][0,0].reshape(-1)
-                joint_direction_cat = instance_data['motion_direction_class'][0,0].reshape(-1)
-                joint_direction_reg = instance_data['motion_direction_delta'][0,0]
-                joint_origin_reg = instance_data['motion_position_param'][0,0]
-                joint_type = instance_data['motion_dof_type'][0,0].reshape(-1)
-                joint_all_directions = instance_data['all_direction_kmeans'][0,0]
-                gt_joints = instance_data['dof_matrix'][0,0]
-                gt_proposals = instance_data['proposal'][0,0]
-                simmat = instance_data['similar_matrix'][0,0]
+                anchor_pts = instance_data['core_position'][0, 0].reshape(-1)
+                joint_direction_cat = instance_data['motion_direction_class'][0, 0].reshape(-1)
+                joint_direction_reg = instance_data['motion_direction_delta'][0, 0]
+                joint_origin_reg = instance_data['motion_position_param'][0, 0]
+                joint_type = instance_data['motion_dof_type'][0, 0].reshape(-1)
+                joint_all_directions = instance_data['all_direction_kmeans'][0, 0]
+                gt_joints = instance_data['dof_matrix'][0, 0]
+                gt_proposals = instance_data['proposal'][0, 0]
+                simmat = instance_data['similar_matrix'][0, 0]
+                simmat_full = simmat + np.transpose(simmat)
 
                 if self.set == 'train':
                     object_id = str(i)
@@ -58,27 +61,36 @@ class Mat2Hdf5Impl:
                 articulation_id = '0'
 
                 row = pd.DataFrame([[object_cat, object_id, articulation_id]],
-                            columns=['objectCat', 'objectId', 'articulationId'])
+                                   columns=['objectCat', 'objectId', 'articulationId'])
                 data_info_list.append(row)
 
                 instance_name = f'{object_cat}_{object_id}_{articulation_id}'
                 h5instance = h5file.require_group(instance_name)
-                h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts, compression='gzip')
-                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts, compression='gzip')
-                h5instance.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape, data=joint_direction_cat, compression='gzip')
-                h5instance.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape, data=joint_direction_reg, compression='gzip')
-                h5instance.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape, data=joint_origin_reg, compression='gzip')
-                h5instance.create_dataset('joint_type', shape=joint_type.shape, data=joint_type, compression='gzip')
-                h5instance.create_dataset('joint_all_directions', shape=joint_all_directions.shape, data=joint_all_directions, compression='gzip')
-                h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints, compression='gzip')
-                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals, compression='gzip')
-                h5instance.create_dataset('simmat', shape=simmat.shape, data=simmat, compression='gzip')
+                h5instance.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.bool), compression='gzip')
+                h5instance.create_dataset('joint_direction_cat', shape=joint_direction_cat.shape,
+                                          data=joint_direction_cat.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('joint_direction_reg', shape=joint_direction_reg.shape,
+                                          data=joint_direction_reg.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('joint_origin_reg', shape=joint_origin_reg.shape, data=joint_origin_reg.astype(np.float32),
+                                          compression='gzip')
+                h5instance.create_dataset('joint_type', shape=joint_type.shape, data=joint_type.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('joint_all_directions', shape=joint_all_directions.shape,
+                                          data=joint_all_directions.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('gt_joints', shape=gt_joints.shape, data=gt_joints.astype(np.float32), compression='gzip')
+                h5instance.create_dataset('gt_proposals', shape=gt_proposals.shape, data=gt_proposals.astype(np.bool),
+                                          compression='gzip')
+                h5instance.create_dataset('simmat', shape=simmat_full.shape, data=simmat_full.astype(np.bool), compression='gzip')
                 pbar.update(1)
-            
+
+                # viz = Visualizer()
+                # viz.view_stage1_input(h5instance)
+
         h5file.close()
         data_info = pd.concat(data_info_list, ignore_index=True)
         data_info.to_csv(os.path.splitext(output_filepath)[0] + '.csv')
         return output_filepath
+
 
 class Mat2Hdf5:
     def __init__(self, cfg):
@@ -94,10 +106,10 @@ class Mat2Hdf5:
         files = io.get_file_list(self.data_path, join_path=True)
         if len(input_file_indices) > 0:
             files = np.asarray(files)[input_file_indices]
-        
+
         pool = Pool(processes=self.num_processes)
         proc_impl = Mat2Hdf5Impl(self.cfg)
-        jobs = [pool.apply_async(proc_impl, args=(i,file,)) for i, file in enumerate(files)]
+        jobs = [pool.apply_async(proc_impl, args=(i, file,)) for i, file in enumerate(files)]
         pool.close()
         pool.join()
         output_filepath_list = [job.get() for job in jobs]
@@ -143,4 +155,3 @@ class Mat2Hdf5:
 
             viz = Visualizer()
             viz.view_stage1_input(instance_data)
-
