@@ -27,7 +27,7 @@ def get_latest_input_cfg(prev_stage_cfg):
     return input_cfg
 
 
-@hydra.main(config_path='configs', config_name='pipeline')
+@hydra.main(config_path='configs', config_name='pipeline', version_base='1.1')
 def main(cfg: DictConfig):
     OmegaConf.update(cfg, "paths.dataset_dir", io.to_abs_path(cfg.paths.dataset_dir, get_original_cwd()))
     OmegaConf.update(cfg, "paths.result_dir", io.to_abs_path(cfg.paths.result_dir, get_original_cwd()))

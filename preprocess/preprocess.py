@@ -115,11 +115,11 @@ class PreProcess:
             split_info.to_csv(split_info_path)
         elif DatasetName[dataset_name] == DatasetName.MULTISCAN:
             log.info(f'Preprocessing dataset {dataset_name}')
-            # self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
-            #                             os.path.join(self.output_cfg.path, self.output_cfg.train_data))
+            self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
+                                        os.path.join(self.output_cfg.path, self.output_cfg.train_data))
 
-            # self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
-            #                             os.path.join(self.output_cfg.path, self.output_cfg.val_data))
+            self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
+                                        os.path.join(self.output_cfg.path, self.output_cfg.val_data))
 
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.test_set),
                                         os.path.join(self.output_cfg.path, self.output_cfg.test_data))
@@ -135,11 +135,10 @@ class PreProcess:
             pts = h5instance['pts'][:]
             part_semantic_masks = h5instance['part_semantic_masks'][:]
             part_instance_masks = h5instance['part_instance_masks'][:]
-            joint_types = h5instance['joint_types'][:]
-            joint_origins = h5instance['joint_origins'][:]
-            joint_axes = h5instance['joint_axes'][:]
+            joint_types = h5instance['motion_types'][:]
+            joint_origins = h5instance['motion_origins'][:]
+            joint_axes = h5instance['motion_axes'][:]
             joint_axes = joint_axes / np.linalg.norm(joint_axes, axis=1).reshape(-1, 1)
-            joint_ranges = h5instance['joint_ranges'][:]
 
             fps_sample = False
             if pts.shape[0] == num_points:
@@ -152,13 +151,11 @@ class PreProcess:
                 part_semantic_masks = part_semantic_masks[point_idx]
                 part_instance_masks = part_instance_masks[point_idx]
 
-            input_pts[:, 3:6] = input_pts[:, 3:6] / 127.5 - 1.0
+            # normalize color from 0~1 to -1~1
+            input_pts[:, 3:6] = input_pts[:, 3:6] / 0.5 - 1.0
             part_instance_masks[part_instance_masks < 0] = 0
-            try:
-                assert num_parts == np.unique(part_instance_masks).shape[0] - 1
-            except:
-                import pdb
-                pdb.set_trace()
+
+            assert num_parts == np.unique(part_instance_masks).shape[0] - 1
 
             anchor_pts = np.zeros(num_points)
             joint_direction_cat = np.zeros(num_points)
@@ -169,11 +166,6 @@ class PreProcess:
             gt_joints = np.zeros((num_parts, 7))
             gt_proposals = np.zeros((num_parts + 1, num_points))
             simmat = np.zeros((num_points, num_points))
-
-            # input_pts = np.column_stack((input_pts[:, :3], input_pts[:, 6:9]))
-
-            # scale = np.linalg.norm(np.amax(input_pts[:, :3], axis=0) - np.amin(input_pts[:, :3], axis=0))
-            # input_pts[:, :3] = input_pts[:, :3] / scale
 
             for i in range(num_parts):
                 joint_origin = joint_origins[i, :]  # / scale
@@ -206,9 +198,7 @@ class PreProcess:
             h5output_inst = h5output.require_group(instance_name)
             h5output_inst.attrs['numParts'] = num_parts
             h5output_inst.attrs['fpsSample'] = fps_sample
-            h5output_inst.attrs['objectName'] = h5instance.attrs['objectName']
             h5output_inst.attrs['objectId'] = h5instance.attrs['objectId']
-            h5output_inst.attrs['objectSemanticId'] = h5instance.attrs['objectSemanticId']
             h5output_inst.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
                                          compression='gzip')
             h5output_inst.create_dataset('anchor_pts', shape=anchor_pts.shape, data=anchor_pts.astype(np.float32),

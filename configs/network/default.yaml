@@ -8,7 +8,10 @@ device: "cuda:0"
 eval_only: false
 random_seed: 1
 num_points: 4096
+# feature channels, excluding xyz
 num_channels: 6
+has_normal: True
+has_color: True
 
 augmentation:
   jitter: false
@@ -30,6 +33,8 @@ stage1:
   num_workers: "${network.num_workers}"
   num_channels: "${network.num_channels}"
   augmentation: "${network.augmentation}"
+  has_normal: "${network.has_normal}"
+  has_color: "${network.has_color}"
 
   train:
     continuous: false
@@ -73,6 +78,8 @@ stage2:
   num_workers: "${network.num_workers}"
   num_channels: "${network.num_channels}"
   augmentation: "${network.augmentation}"
+  has_normal: "${network.has_normal}"
+  has_color: "${network.has_color}"
 
   train:
     continuous: false
@@ -112,6 +119,8 @@ stage3:
   num_workers: "${network.num_workers}"
   num_channels: "${network.num_channels}"
   augmentation: "${network.augmentation}"
+  has_normal: "${network.has_normal}"
+  has_color: "${network.has_color}"
 
   train:
     continuous: false

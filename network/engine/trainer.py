@@ -69,22 +69,24 @@ class Shape2MotionTrainer:
         batch_size = self.cfg.train.batch_size if not eval_only else self.cfg.test.batch_size
         data_augmentation = self.cfg.augmentation if not eval_only else None
         self.log.info(f'Train on {self.data_path["train"]}, validate on {self.data_path["test"]}')
-        # self.train_loader = torch.utils.data.DataLoader(
-        #     Shape2MotionDataset(
-        #         self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage,
-        #         augmentation_cfg=data_augmentation
-        #     ),
-        #     batch_size=batch_size,
-        #     shuffle=train_shuffle,
-        #     num_workers=self.cfg.num_workers,
-        #     pin_memory=True
-        # )
+        if not eval_only:
+            self.train_loader = torch.utils.data.DataLoader(
+                Shape2MotionDataset(
+                    self.data_path['train'], num_points=self.cfg.num_points, stage=self.stage,
+                    augmentation_cfg=data_augmentation, has_normal=self.cfg.has_normal, has_color=self.cfg.has_color,
+                ),
+                batch_size=batch_size,
+                shuffle=train_shuffle,
+                num_workers=self.cfg.num_workers,
+                pin_memory=True
+            )
 
-        # self.log.info(f'Num {len(self.train_loader)} batches in train loader')
+            self.log.info(f'Num {len(self.train_loader)} batches in train loader')
 
         self.test_loader = torch.utils.data.DataLoader(
             Shape2MotionDataset(
-                self.data_path['test'], num_points=self.cfg.num_points, stage=self.stage
+                self.data_path['test'], num_points=self.cfg.num_points, stage=self.stage,
+                has_normal=self.cfg.has_normal, has_color=self.cfg.has_color,
             ),
             batch_size=batch_size,
             shuffle=False,

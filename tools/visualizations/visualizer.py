@@ -3,7 +3,6 @@ from enum import Enum
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 import trimesh
-import pymeshlab
 import os
 
 from tools.visualizations import Renderer
@@ -33,20 +32,6 @@ Red = np.array([
 class Visualizer(Renderer):
     def __init__(self, vertices=None, faces=None, colors=None, normals=None, mask=None):
         super().__init__(vertices, faces, colors, normals, mask)
-        pass
-
-    def get_curling_arrow(color):
-        arrow_ply = '/localhome/yma50/Documents/blender/arrow.ply'
-
-        ms = pymeshlab.MeshSet()
-        ms.load_new_mesh(arrow_ply)
-        m = ms.current_mesh()
-        vertices = m.vertex_matrix()
-        normals = m.vertex_normal_matrix()
-        faces = m.face_matrix()
-
-        mesh = trimesh.Trimesh(vertices, faces=faces, vertex_colors=color, vertex_normals=normals)
-        return mesh
 
     def view_stage1_input(self, instance_data):
         input_pts = instance_data['input_pts'][:]
@@ -89,8 +74,7 @@ class Visualizer(Renderer):
                 joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
             elif joint_type == JointType.BOTH.value:
                 joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
-
-        # viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, length=0.4)
+        viewer.add_trimesh_arrows(joint_origins, joint_directions, colors=joint_colors, radius=0.005, length=0.01)
         viewer.show()
 
         viewer.reset()
@@ -100,7 +84,7 @@ class Visualizer(Renderer):
         joint_direction_reg = joint_direction_reg[anchor_pts_idx.astype(bool), :]
         joint_directions = joint_all_directions[joint_direction_cat.astype(int), :] + joint_direction_reg
 
-        # viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.2)
+        viewer.add_trimesh_arrows(anchor_pts_xyz, joint_directions, radius=0.005, length=0.01)
         viewer.show()
 
     def view_stage1_output(self, pred_cfg, proposal__downsample=1, joint_downsample=2):

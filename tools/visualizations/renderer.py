@@ -6,7 +6,6 @@ import imageio
 import time
 import numpy as np
 from PIL import Image
-import pymeshlab
 
 from tools.utils import io
 from matplotlib import cm
@@ -133,31 +132,6 @@ class Renderer:
         arrow = trimesh.util.concatenate([head, body])
         return arrow
 
-    @staticmethod
-    def get_curling_arrow(color, head_color):
-        arrow_ply = '/localhome/yma50/Documents/blender/arrow.ply'
-        arrow_head_ply = '/localhome/yma50/Documents/blender/arrow_head.ply'
-
-        ms = pymeshlab.MeshSet()
-        ms.load_new_mesh(arrow_ply)
-        m = ms.current_mesh()
-        vertices = m.vertex_matrix()
-        normals = m.vertex_normal_matrix()
-        faces = m.face_matrix()
-
-        mesh = trimesh.Trimesh(vertices, faces=faces, vertex_colors=color, vertex_normals=normals)
-
-        ms = pymeshlab.MeshSet()
-        ms.load_new_mesh(arrow_head_ply)
-        m = ms.current_mesh()
-        vertices = m.vertex_matrix()
-        normals = m.vertex_normal_matrix()
-        faces = m.face_matrix()
-
-        mesh_head = trimesh.Trimesh(vertices, faces=faces, vertex_colors=head_color, vertex_normals=normals)
-
-        return trimesh.util.concatenate([mesh, mesh_head])
-
     def add_arrows(self, positions, axes, color=None, radius=0.01, length=0.5):
         log.debug('add arrow')
         transformations = []
@@ -170,7 +144,7 @@ class Renderer:
         arrows = pyrender.Mesh.from_trimesh(arrow, poses=transformations)
         self.scene.add(arrows)
 
-    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5, curl=True):
+    def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5, curl=False):
         log.debug('add trimesh arrow')
         arrows = []
         z_axis = [0, 0, 1]
@@ -184,15 +158,9 @@ class Renderer:
                 color = None
             else:
                 color = colors[i]
-            arrow = Renderer.draw_arrow(color, radius, arrow_length)
+            arrow = Renderer.draw_arrow(color, color, radius, arrow_length)
             arrow.apply_transform(transformation)
             arrows.append(arrow)
-            if curl:
-                curling_arrow = Renderer.get_curling_arrow([255, 0, 0])
-                scale = np.diag([0.1, 0.1, 0.1, 1.0])
-                curling_arrow.apply_transform(scale)
-                curling_arrow.apply_transform(transformation)
-                arrows.append(curling_arrow)
         self.trimesh_list += arrows
 
     def get_trimesh_arrows(self, positions, axes, origin_colors=[None], colors=[None], head_colors=[None], radius=0.02, length=0.5, joint_types=[None], curls_colors=None, curls_head_colors=None):

@@ -495,7 +495,7 @@ class Evaluation:
 
 
 
-@hydra.main(config_path='configs', config_name='evaluate')
+@hydra.main(config_path='configs', config_name='evaluate', version_base='1.1')
 def main(cfg: DictConfig):
     OmegaConf.update(cfg, "paths.result_dir", io.to_abs_path(cfg.paths.result_dir, get_original_cwd()))
     nms_output_cfg = get_latest_nms_output_cfg(cfg.paths.postprocess)

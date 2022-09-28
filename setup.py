@@ -2,8 +2,8 @@
 from setuptools import find_packages, setup
 
 requirements = [
-    "hydra-core==1.1.1", "urdfpy==0.0.22", "PyYAML==6.0", "pandas==1.1.5",
-    "matplotlib==3.3.4", "trimesh==3.9.36", "progress==1.6", "tqdm==4.39.0"]
+    "hydra-core==1.2.0", "urdfpy==0.0.22", "PyYAML==6.0", "pandas==1.1.5",
+    "matplotlib==3.3.4", "trimesh==3.9.36", "progress==1.6", "tqdm==4.39.0", "dgl==0.6.0"]
 
 setup(
     name="shape2motion",

@@ -52,6 +52,7 @@ class PostStage2Impl:
         instance_name = data.instance_name
         input_pts = data.input_pts
         num_points = input_pts.shape[0]
+        num_channels = input_pts.shape[1]
         input_xyz = input_pts[:, :3]
 
         data_set = data.data_set
@@ -78,7 +79,7 @@ class PostStage2Impl:
 
         assert len(self.move_angle_params) == len(
             self.move_trans_params), 'move_angle_params should have the same length as move_trans_params'
-        moved_pcds = np.zeros((3, num_points, 9))
+        moved_pcds = np.zeros((3, num_points, num_channels))
         for i in range(len(self.move_angle_params)):
             move_angle = float(self.move_angle_params[i]) / 180.0 * np.pi
             diag_length = LA.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
