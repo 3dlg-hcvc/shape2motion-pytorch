@@ -64,9 +64,6 @@ class NMS:
             object2instance_names[object_name] = instance_names
 
         for object_name in tqdm(stage1_output.keys()):
-            # if object_name.split('_')[0] != 'car':
-            #     continue
-
             instance_names = object2instance_names[object_name]
             if len(instance_names) == 0:
                 continue
@@ -85,8 +82,8 @@ class NMS:
                 pred_motion_scores = stage2_instance['pred_motion_scores'][:]
                 pred_motion_scores = pred_motion_scores[pred_anchor_mask]
                 stage3_instance = stage3_output[instance_name]
-                # pred_part_proposal = stage1_output[object_name]['pred_part_proposals'][:][int(instance_name.split('_')[-1]), :].astype(bool)
                 pred_confidence = stage1_output[object_name]['pred_confidences'][:][int(instance_name.split('_')[-1])]
+                # pred_part_proposal = stage1_output[object_name]['pred_part_proposals'][:][int(instance_name.split('_')[-1]), :].astype(bool)
                 # motion_scores = stage1_output[object_name]['motion_scores'][:][int(instance_name.split('_')[-1]), :]
 
                 pred_part_proposal = stage3_instance['part_proposal'][:].astype(bool)
@@ -94,7 +91,6 @@ class NMS:
                 score = np.amax(pred_motion_scores)
                 scores2.append(score)
                 scores.append(pred_confidence)
-                # scores.append(score)
 
             part_pick = self.nms(np.asarray(masks), np.asarray(scores))
             assert (len(part_pick) > 0), 'No part proposal picked in nms'

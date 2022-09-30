@@ -116,19 +116,20 @@ class PreProcess:
         elif DatasetName[dataset_name] == DatasetName.MULTISCAN:
             log.info(f'Preprocessing dataset {dataset_name}')
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.train_set),
-                                        os.path.join(self.output_cfg.path, self.output_cfg.train_data))
+                                        os.path.join(self.output_cfg.path, self.output_cfg.train_data), self.split.train.num_instances)
 
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.val_set),
-                                        os.path.join(self.output_cfg.path, self.output_cfg.val_data))
+                                        os.path.join(self.output_cfg.path, self.output_cfg.val_data), self.split.val.num_instances)
 
             self.process_multiscan_data(os.path.join(self.dataset_dir, self.input_cfg.test_set),
-                                        os.path.join(self.output_cfg.path, self.output_cfg.test_data))
+                                        os.path.join(self.output_cfg.path, self.output_cfg.test_data), self.split.test.num_instances)
 
-    def process_multiscan_data(self, input_file_path, output_file_path):
+    def process_multiscan_data(self, input_file_path, output_file_path, num_instances=-1):
         num_points = self.cfg.num_points
 
         h5file = h5py.File(input_file_path, 'r')
         h5output = h5py.File(output_file_path, 'w')
+        count = 0
         for key in tqdm(h5file.keys()):
             h5instance = h5file[key]
             num_parts = h5instance.attrs['numParts']
@@ -230,4 +231,8 @@ class PreProcess:
             if self.debug:
                 viz = Visualizer()
                 viz.view_stage1_input(h5output_inst)
+            
+            count += 1
+            if num_instances > 0 and count == num_instances:
+                break
         h5output.close()

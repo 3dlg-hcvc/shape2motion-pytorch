@@ -19,7 +19,7 @@ augmentation:
   rotate: false
   color: false
 
-test_split: "test"
+test_split: "val"
 
 stage1:
   name: "stage1"
