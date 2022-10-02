@@ -5,8 +5,8 @@ import h5py
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from dgl.geometry import farthest_point_sampler
-from dgl import backend as F
+# from dgl.geometry import farthest_point_sampler
+# from dgl import backend as F
 
 from omegaconf import OmegaConf
 
@@ -35,22 +35,22 @@ all_direction_kmeans = np.array([
 ])
 
 
-def fps(pos, npoints, start_idx=None):
-    ctx = F.context(pos)
-    B, N, C = pos.shape
-    pos = pos.reshape(-1, C)
-    dist = F.zeros((B * N), dtype=pos.dtype, ctx=ctx)
-    if start_idx is None:
-        start_idx = F.randint(shape=(B,), dtype=F.int64,
-                              ctx=ctx, low=0, high=N - 1)
-    else:
-        if start_idx >= N or start_idx < 0:
-            raise ValueError("Invalid start_idx, expected 0 <= start_idx < {}, got {}".format(
-                N, start_idx))
-        start_idx = F.full_1d(B, start_idx, dtype=F.int64, ctx=ctx)
-    result = F.zeros((npoints * B), dtype=torch.int64, ctx=ctx)
-    farthest_point_sampler(pos, B, npoints, dist, start_idx, result)
-    return result.reshape(B, npoints)
+# def fps(pos, npoints, start_idx=None):
+#     ctx = F.context(pos)
+#     B, N, C = pos.shape
+#     pos = pos.reshape(-1, C)
+#     dist = F.zeros((B * N), dtype=pos.dtype, ctx=ctx)
+#     if start_idx is None:
+#         start_idx = F.randint(shape=(B,), dtype=F.int64,
+#                               ctx=ctx, low=0, high=N - 1)
+#     else:
+#         if start_idx >= N or start_idx < 0:
+#             raise ValueError("Invalid start_idx, expected 0 <= start_idx < {}, got {}".format(
+#                 N, start_idx))
+#         start_idx = F.full_1d(B, start_idx, dtype=F.int64, ctx=ctx)
+#     result = F.zeros((npoints * B), dtype=torch.int64, ctx=ctx)
+#     farthest_point_sampler(pos, B, npoints, dist, start_idx, result)
+#     return result.reshape(B, npoints)
 
 
 class PreProcess:
@@ -141,16 +141,17 @@ class PreProcess:
             joint_axes = h5instance['motion_axes'][:]
             joint_axes = joint_axes / np.linalg.norm(joint_axes, axis=1).reshape(-1, 1)
 
-            fps_sample = False
-            if pts.shape[0] == num_points:
-                input_pts = pts
-            else:
-                fps_sample = True
-                pcd = torch.from_numpy(pts.reshape((1, pts.shape[0], pts.shape[1])))
-                point_idx = fps(pcd, num_points)[0].cpu().numpy()
-                input_pts = pts[point_idx, :]
-                part_semantic_masks = part_semantic_masks[point_idx]
-                part_instance_masks = part_instance_masks[point_idx]
+            input_pts = pts
+            # fps_sample = False
+            # if pts.shape[0] == num_points:
+            #     input_pts = pts
+            # else:
+            #     fps_sample = True
+            #     pcd = torch.from_numpy(pts.reshape((1, pts.shape[0], pts.shape[1])))
+            #     point_idx = fps(pcd, num_points)[0].cpu().numpy()
+            #     input_pts = pts[point_idx, :]
+            #     part_semantic_masks = part_semantic_masks[point_idx]
+            #     part_instance_masks = part_instance_masks[point_idx]
 
             # normalize color from 0~1 to -1~1
             input_pts[:, 3:6] = input_pts[:, 3:6] / 0.5 - 1.0
@@ -198,7 +199,7 @@ class PreProcess:
             instance_name = f'{key}_{articulation_id}'
             h5output_inst = h5output.require_group(instance_name)
             h5output_inst.attrs['numParts'] = num_parts
-            h5output_inst.attrs['fpsSample'] = fps_sample
+            # h5output_inst.attrs['fpsSample'] = fps_sample
             h5output_inst.attrs['objectId'] = h5instance.attrs['objectId']
             h5output_inst.create_dataset('input_pts', shape=input_pts.shape, data=input_pts.astype(np.float32),
                                          compression='gzip')
@@ -224,9 +225,9 @@ class PreProcess:
                                          compression='gzip')
             h5output_inst.create_dataset('simmat', shape=simmat.shape, data=simmat.astype(np.float32),
                                          compression='gzip')
-            if fps_sample:
-                h5output_inst.create_dataset('point_idx', shape=point_idx.shape, data=point_idx.astype(np.int32),
-                                             compression='gzip')
+            # if fps_sample:
+            #     h5output_inst.create_dataset('point_idx', shape=point_idx.shape, data=point_idx.astype(np.int32),
+            #                                  compression='gzip')
 
             if self.debug:
                 viz = Visualizer()
