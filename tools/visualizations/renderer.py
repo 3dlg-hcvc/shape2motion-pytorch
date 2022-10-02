@@ -4,8 +4,12 @@ import trimesh
 import pyrender
 import imageio
 import time
+from io import BytesIO
 import numpy as np
 from PIL import Image
+import requests
+from urllib.parse import urljoin
+from plyfile import PlyData
 
 from tools.utils import io
 from matplotlib import cm
@@ -17,6 +21,7 @@ from pyrender.constants import (DEFAULT_SCENE_SCALE,
 
 os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
+arrow_ply_gist_url = "https://gist.githubusercontent.com/SamMaoYS/90175f97ec3ebe58732954ee96bce578/raw/cafdf4f14f3f051e3c757debfae476924a52b309"
 
 class Renderer:
     def __init__(self, vertices=None, faces=None, colors=None, normals=None, mask=None):
@@ -33,6 +38,9 @@ class Renderer:
         self.vertex_normals = None
         self.caption = None
         self.point_size = 8
+
+        self._arrow_ply = PlyData.read(BytesIO(requests.get(urljoin(arrow_ply_gist_url, 'arrow.ply')).content))
+        self._arrow_head_ply = PlyData.read(BytesIO(requests.get(urljoin(arrow_ply_gist_url, 'arrow_head.ply')).content))
 
         if vertices is not None:
             self.add_geometry(vertices, faces, colors, normals, mask)
@@ -163,6 +171,28 @@ class Renderer:
             arrows.append(arrow)
         self.trimesh_list += arrows
 
+    @staticmethod
+    def plydata_to_trimesh(plydata, color):
+        x = plydata['vertex']['x']
+        y = plydata['vertex']['y']
+        z = plydata['vertex']['z']
+        vertices = np.column_stack((x, y, z))
+
+        nx = plydata['vertex']['nx']
+        ny = plydata['vertex']['ny']
+        nz = plydata['vertex']['nz']
+        vertex_normals = np.column_stack((nx, ny, nz))
+        
+        tri_data = plydata['face'].data['vertex_indices']
+        triangles = np.vstack(tri_data)
+
+        return trimesh.Trimesh(vertices, faces=triangles, vertex_normals=vertex_normals, vertex_colors=color)
+
+    def get_curling_arrow(self, body_color, head_color):
+        arrow_head = self.plydata_to_trimesh(self._arrow_head_ply, head_color)
+        arrow = self.plydata_to_trimesh(self._arrow_ply, body_color)
+        return trimesh.util.concatenate([arrow_head, arrow])
+
     def get_trimesh_arrows(self, positions, axes, origin_colors=[None], colors=[None], head_colors=[None], radius=0.02, length=0.5, joint_types=[None], curls_colors=None, curls_head_colors=None):
         arrows = []
         z_axis = [0, 0, 1]
@@ -181,7 +211,7 @@ class Renderer:
             arrow.apply_transform(transformation)
             arrows.append(arrow)
             if joint_types[i] == 1:
-                curling_arrow = Renderer.get_curling_arrow(curls_colors[i], curls_head_colors[i])
+                curling_arrow = self.get_curling_arrow(curls_colors[i], curls_head_colors[i])
                 scale = np.diag([0.1, 0.1, 0.1, 1.0])
                 curling_arrow.apply_transform(scale)
                 curling_arrow.apply_transform(transformation)
