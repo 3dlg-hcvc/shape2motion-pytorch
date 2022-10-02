@@ -1,0 +1,72 @@
+version: "1.0"
+
+dataset_dir: "${dataset.input.path}" # path to datasets folder
+result_dir: results # path to result folder
+
+preprocess:
+  input_dir: "${paths.dataset_dir}"
+  output_dir: "/home/yma50/scratch/run/shape2motion/results/preprocess"
+  tmp_dir: "${paths.preprocess.output_dir}/tmp"
+
+  input: ${dataset.input} # overwrite based on dataset selection at runtime
+  tmp_output:
+    path: "${paths.preprocess.tmp_dir}"
+    input_files: "input_files.csv"
+  output:
+    path: "${paths.preprocess.output_dir}"
+    split_info: "split_info.csv"
+    train_data: "train.h5"
+    val_data: "val.h5"
+    test_data: "test.h5"
+
+    train: "${paths.preprocess.output_dir}/${paths.preprocess.output.train_data}"
+    val: "${paths.preprocess.output_dir}/${paths.preprocess.output.val_data}"
+    test: "${paths.preprocess.output_dir}/${paths.preprocess.output.test_data}"
+
+network:
+  output_dir: "${paths.result_dir}/network"
+  stage1:
+    folder_name: "stage1"
+    path: "${paths.network.output_dir}/${paths.network.stage1.folder_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    train:
+      folder_name: "train"
+      output_dir: "${paths.network.stage1.path}/${paths.network.stage1.train.folder_name}"
+      model_filename: "model_%09d.pth"
+      best_model_filename: "best_model.pth"
+    inference:
+      folder_name: "inference"
+      output_dir: "${paths.network.stage1.path}/${paths.network.stage1.inference.folder_name}"
+      inference_result: "inference_result.h5"
+
+  stage2:
+    folder_name: "stage2"
+    path: "${paths.network.output_dir}/${paths.network.stage2.folder_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    train:
+      folder_name: "train"
+      output_dir: "${paths.network.stage2.path}/${paths.network.stage2.train.folder_name}"
+      model_filename: "model_%09d.pth"
+      best_model_filename: "best_model.pth"
+    inference:
+      folder_name: "inference"
+      output_dir: "${paths.network.stage2.path}/${paths.network.stage2.inference.folder_name}"
+      inference_result: "inference_result.h5"
+
+  stage3:
+    folder_name: "stage3"
+    path: "${paths.network.output_dir}/${paths.network.stage3.folder_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    train:
+      folder_name: "train"
+      output_dir: "${paths.network.stage3.path}/${paths.network.stage3.train.folder_name}"
+      model_filename: "model_%09d.pth"
+      best_model_filename: "best_model.pth"
+    inference:
+      folder_name: "inference"
+      output_dir: "${paths.network.stage3.path}/${paths.network.stage3.inference.folder_name}"
+      inference_result: "inference_result.h5"
+
+postprocess:
+    folder_name: "postprocess"
+    output_dir: "${paths.result_dir}/${paths.postprocess.folder_name}"
+    path: "${paths.postprocess.output_dir}/${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    output:
+      nms_result: "nms_result.h5"
