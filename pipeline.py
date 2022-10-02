@@ -81,8 +81,8 @@ def main(cfg: DictConfig):
             nms_cfg.stage3 = stage3_output_cfg
         io.ensure_dir_exists(cfg.paths.postprocess.path)
         nms = NMS(nms_cfg)
-        # data_sets = ['train', cfg.network.test_split]
-        data_sets = [cfg.network.test_split]
+        data_sets = ['train', cfg.network.test_split]
+        # data_sets = [cfg.network.test_split]
         for data_set in data_sets:
             output_path = os.path.join(cfg.paths.postprocess.path, f'{data_set}_' + cfg.paths.postprocess.output.nms_result)
             nms.process(output_path, data_set)

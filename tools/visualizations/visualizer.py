@@ -303,7 +303,7 @@ class Visualizer(Renderer):
     def view_evaluation_result(self, gt_cfg, pred_cfg, output_dir='viz'):
         part_proposals = gt_cfg.part_proposals
         joints = gt_cfg.joints
-        object_name = gt_cfg.object_name
+        object_id = gt_cfg.object_id
         mask = np.zeros(part_proposals.shape[1])
         for i in range(part_proposals.shape[0]):
             mask[part_proposals[i, :]] = (i+1)
@@ -320,12 +320,6 @@ class Visualizer(Renderer):
         curls_head_colors = np.zeros((len(joint_types), 4))
         origin_colors = np.zeros((len(joint_types), 4))
         for i, joint_type in enumerate(joint_types):
-            # if joint_type == JointType.ROT.value:
-            #     joint_colors[i] = [1.0, 0.0, 0.0, 1.0]
-            # elif joint_type == JointType.TRANS.value:
-            #     joint_colors[i] = [0.0, 0.0, 1.0, 1.0]
-            # elif joint_type == JointType.BOTH.value:
-            # joint_colors[i] = [0.0, 1.0, 0.0, 1.0]
             joint_colors[i] = Green[0]
             head_colors[i] = Green[1]
             curls_colors[i] = Green[0]
@@ -333,16 +327,16 @@ class Visualizer(Renderer):
             origin_colors[i] = Green[0]
 
         gt_arrows = gt_viewer.get_trimesh_arrows(joint_origins, joint_directions, origin_colors=origin_colors, colors=joint_colors, head_colors=head_colors, length=0.4, joint_types=joint_types, curls_colors=curls_colors, curls_head_colors=curls_head_colors)
-        # gt_viewer.show(window_name=f'gt')
+        
         io.ensure_dir_exists(os.path.join(output_dir, 'gt'))
         arrows = trimesh.util.concatenate(gt_arrows)
-        arrows.export(os.path.join(output_dir, 'gt', f'{object_name}_arrows.ply'))
-        gt_viewer.export(os.path.join(output_dir, 'gt', f'{object_name}.ply'))
+        arrows.export(os.path.join(output_dir, 'gt', f'{object_id}_arrows.ply'))
+        gt_viewer.export(os.path.join(output_dir, 'gt', f'{object_id}.ply'))
 
         part_proposals = pred_cfg.part_proposals.astype(bool)
         joints = pred_cfg.joints
         gt_joints = pred_cfg.gt_joints
-        object_name = pred_cfg.object_name
+        object_id = pred_cfg.object_id
         mask = np.zeros(part_proposals.shape[1])
         for i in range(part_proposals.shape[0]):
             mask[part_proposals[i, :]] = (i+1)
@@ -355,16 +349,6 @@ class Visualizer(Renderer):
         gt_joint_origins = gt_joints[:, :3]
         gt_joint_directions = gt_joints[:, 3:6]
         gt_joint_directions = gt_joint_directions / np.linalg.norm(gt_joint_directions, axis=1).reshape(-1, 1)
-        
-        # joint_types = joints[:, 6] 
-        # joint_colors = np.zeros((len(joint_types), 4))
-        # for i, joint_type in enumerate(joint_types):
-        #     if joint_type == JointType.ROT.value:
-        #         joint_colors[i] = [1.0, 0.0, 0.0, 0.8]
-        #     elif joint_type == JointType.TRANS.value:
-        #         joint_colors[i] = [0.0, 0.0, 1.0, 0.8]
-        #     elif joint_type == JointType.BOTH.value:
-        #         joint_colors[i] = [0.0, 1.0, 0.0, 0.8]
         
         joint_types = gt_joints[:, 6]
         joint_colors = np.zeros((len(joint_types), 4))
@@ -398,17 +382,15 @@ class Visualizer(Renderer):
             else:
                 origin_colors[i] = Red[0]
 
-        # gt_arrows = pred_viewer.get_trimesh_arrows(gt_joint_origins, gt_joint_directions, colors=joint_colors, length=0.4)
         pred_arrows = pred_viewer.get_trimesh_arrows(joint_origins, joint_directions, origin_colors=origin_colors, colors=joint_colors, head_colors=head_colors, length=0.4, joint_types=joint_types, curls_colors=curls_colors, curls_head_colors=curls_head_colors)
 
         arrows = trimesh.util.concatenate(pred_arrows)
         io.ensure_dir_exists(os.path.join(output_dir, 'pred'))
-        arrows.export(os.path.join(output_dir, 'pred', f'{object_name}_arrows.ply'))
-        # pred_viewer.show(window_name=f'pred')
-        pred_viewer.export(os.path.join(output_dir, 'pred', f'{object_name}.ply'))
-        pred_viewer.render(os.path.join(output_dir, 'pred', f'{object_name}.gif'), as_gif=True)
+        arrows.export(os.path.join(output_dir, 'pred', f'{object_id}_arrows.ply'))
+        pred_viewer.export(os.path.join(output_dir, 'pred', f'{object_id}.ply'))
+        pred_viewer.render(os.path.join(output_dir, 'pred', f'{object_id}.gif'), as_gif=True)
 
-    def view_input_color(self, pts, object_name, output_dir):
+    def view_input_color(self, pts, object_id, output_dir):
         m = trimesh.Trimesh(vertices=pts[:, :3], vertex_colors=(pts[:, 3:6]+1) / 2)
         io.ensure_dir_exists(os.path.join(output_dir, 'input'))
-        m.export(os.path.join(output_dir, 'input', f'{object_name}.ply'))
+        m.export(os.path.join(output_dir, 'input', f'{object_id}.ply'))
