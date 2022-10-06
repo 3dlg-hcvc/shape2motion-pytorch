@@ -90,16 +90,22 @@ class Evaluation:
         dist = LA.norm(np.cross(vec1, vec2)) / LA.norm(vec1)
         return dist
 
-    def evaluate(self, gt_h5file, pred_h5file, inst_pred_h5file=None):
+    def evaluate(self, gt_h5file, pred_h5file, inst_pred_h5file=None, articulation_h5file=None):
         gt_h5 = h5py.File(gt_h5file, 'r')
         pred_h5 = h5py.File(pred_h5file, 'r')
         if inst_pred_h5file is not None:
             inst_pred_h5 = h5py.File(inst_pred_h5file, 'r')
 
+        if articulation_h5file is not None:
+            articulation_h5 = h5py.File(articulation_h5file, 'r')
+
         best_matches = []
         log.debug(pred_h5.keys())
         log.debug(len(gt_h5.keys()))
         for object_id in gt_h5.keys():
+            if articulation_h5file is not None:
+                object_articulation = articulation_h5['_'.join(object_id.split('_')[:-1])]
+                parts_closed = object_articulation['part_closed'][:]
             best_match = {
                 'object_id': object_id,
                 'iou': [],
@@ -181,6 +187,15 @@ class Evaluation:
             best_parts = np.ones(gt_proposals.shape[0]) * -1.0
             best_ious = np.ones(gt_proposals.shape[0]) * -1.0
             for part_idx in range(gt_proposals.shape[0]):
+                if self.cfg.eval_closed:
+                    part_closed_state = parts_closed[part_idx]
+                else:
+                    part_closed_state = ~parts_closed[part_idx]
+                if articulation_h5file is not None and part_closed_state:
+                    best_match['num_gt_parts'] -= 1
+                    best_match['num_gt_joints'] -= 1
+                    continue
+
                 is_turn = np.where(turn_idx == part_idx)[0].size > 0
                 if is_turn:
                     continue
@@ -214,6 +229,11 @@ class Evaluation:
                 gt_joint = gt_joints[part_idx]
                 selected_joint = None
                 for j, joint in enumerate(pred_part_joints):
+                    if articulation_h5file is not None and part_closed_state:
+                        best_match['num_pred_parts'] -= 1
+                        best_match['num_pred_joints'] -= 1
+                        continue
+
                     if not np.any(joint) or part_idx in best_match['joint_matches'].keys():
                         continue
                     md = None
@@ -336,6 +356,8 @@ class Evaluation:
         }
         names = []
         for best_match in best_matches:
+            if best_match['num_gt_parts'] == 0:
+                continue
             # if best_match['object_id'].split('_')[0] == 'motor':
             eval_results['iou'] += best_match['iou']
             eval_results['epe'] += best_match['epe']
@@ -549,8 +571,17 @@ def main(cfg: DictConfig):
             input_path = cfg.paths.preprocess.output.test
             output_path = nms_output_cfg.test
 
-        eval_results = evaluator.evaluate(input_path, output_path, cfg.inst_pred_path)
-        evaluator.write_evaluation_results(eval_results, os.path.join(cfg.output_dir, f'{data_set}_eval_results.txt'))
+        eval_results = evaluator.evaluate(input_path, output_path, cfg.inst_pred_path, cfg.articulation_dataset_path)
+        if cfg.articulation_dataset_path and cfg.eval_closed:
+            eval_output_path = os.path.join(cfg.output_dir, f'{data_set}_eval_closed_results.txt')
+        elif cfg.articulation_dataset_path and ~cfg.eval_closed:
+            eval_output_path = os.path.join(cfg.output_dir, f'{data_set}_eval_opened_results.txt')
+        elif cfg.inst_pred_path:
+            eval_output_path = os.path.join(cfg.output_dir, f'{data_set}_eval_inst_pred_results.txt')
+        else:
+            eval_output_path = os.path.join(cfg.output_dir, f'{data_set}_eval_results.txt')
+
+        evaluator.write_evaluation_results(eval_results, eval_output_path)
 
 if __name__ == '__main__':
     start = time()

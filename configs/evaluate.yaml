@@ -12,7 +12,10 @@ iou_threshold: 0.5
 output_dir: "${paths.result_dir}/evaluation"
 eval_train: False
 
+eval_closed: False
+
 inst_pred_path:
+articulation_dataset_path:
 
 # hydra configuration log output dir
 hydra:
