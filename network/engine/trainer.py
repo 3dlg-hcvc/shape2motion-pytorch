@@ -78,7 +78,8 @@ class Shape2MotionTrainer:
                 batch_size=batch_size,
                 shuffle=train_shuffle,
                 num_workers=self.cfg.num_workers,
-                pin_memory=True
+                pin_memory=True,
+                drop_last=True
             )
 
             self.log.info(f'Num {len(self.train_loader)} batches in train loader')

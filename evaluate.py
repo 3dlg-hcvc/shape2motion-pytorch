@@ -262,7 +262,7 @@ class Evaluation:
                         best_match['ta'].append(ta)
                         if ta == 1:
                             best_match['M'].append(pred_part_joints_sorted_idx[j])
-                            if oe < np.pi / 180 * 10.0:
+                            if oe < 10.0:
                                 best_match['MA'].append(pred_part_joints_sorted_idx[j])
                                 scale = np.linalg.norm(np.amax(input_xyz, axis=0) - np.amin(input_xyz, axis=0))
                                 if md < scale * 0.25 or selected_joint[6] == JointType.TRANS.value:
