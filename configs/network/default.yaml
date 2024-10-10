@@ -88,7 +88,7 @@ stage2:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 200
     lr: 0.001
     batch_size: 16
 
@@ -129,7 +129,7 @@ stage3:
     save_frequency: 5
     log_frequency: 1
 
-    max_epochs: 100
+    max_epochs: 200
     lr: 0.001
     batch_size: 8
 

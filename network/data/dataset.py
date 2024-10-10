@@ -77,27 +77,27 @@ class Shape2MotionDataset(Dataset):
                     gt_dict[k] = torch.from_numpy(v[:])
 
             if self.augmentation_cfg is not None:
-                input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
-                inv_trans_m = torch.inverse(m).transpose(0, 1)
-                if self.augmentation_cfg.color:
-                    color_rand = torch.randn(3) * 0.05
-                    input_pts[:, 3:6] += color_rand
-
                 if self.stage == Stage.stage1:
+                    input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
+                    inv_trans_m = torch.inverse(m).transpose(0, 1)
+                    if self.augmentation_cfg.color:
+                        color_rand = torch.randn(3) * 0.05
+                        input_pts[:, 3:6] += color_rand
+                    
                     gt_dict['joint_origin_reg'] = torch.matmul(gt_dict['joint_origin_reg'], m)
                     input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
-                else:
-                    gt_dict['motion_regression'][:3] = torch.matmul(gt_dict['motion_regression'][:3], m)
-                    gt_dict['moved_pcds'][:, :, :3] = torch.matmul(gt_dict['moved_pcds'][:, :, :3], m)
-                    if self.has_normal and self.has_color:
-                        input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
-                        gt_dict['moved_pcds'][:, :, 6:9] = torch.matmul(gt_dict['moved_pcds'][:, :, 6:9], inv_trans_m)
-                    elif self.has_normal:
-                        input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
-                        gt_dict['moved_pcds'][:, :, 3:6] = torch.matmul(gt_dict['moved_pcds'][:, :, 3:6], inv_trans_m)
+                # else:
+                #     gt_dict['motion_regression'][:3] = torch.matmul(gt_dict['motion_regression'][:3], m)
+                #     gt_dict['moved_pcds'][:, :, :3] = torch.matmul(gt_dict['moved_pcds'][:, :, :3], m)
+                #     if self.has_normal and self.has_color:
+                #         input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
+                #         gt_dict['moved_pcds'][:, :, 6:9] = torch.matmul(gt_dict['moved_pcds'][:, :, 6:9], inv_trans_m)
+                #     elif self.has_normal:
+                #         input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
+                #         gt_dict['moved_pcds'][:, :, 3:6] = torch.matmul(gt_dict['moved_pcds'][:, :, 3:6], inv_trans_m)
 
-                    if self.has_color and self.augmentation_cfg.color:
-                        gt_dict['moved_pcds'][:, :, 3:6] += color_rand
+                #     if self.has_color and self.augmentation_cfg.color:
+                #         gt_dict['moved_pcds'][:, :, 3:6] += color_rand
 
         elif self.stage == Stage.stage2:
             components = instance_name.split('_')
@@ -112,18 +112,18 @@ class Shape2MotionDataset(Dataset):
                 'motion_scores': torch.from_numpy(object_data['motion_scores'][:][proposal_idx])
             }
 
-            if self.augmentation_cfg is not None:
-                input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
-                if self.has_normal:
-                    inv_trans_m = torch.inverse(m).transpose(0, 1)
-                    if self.has_color:
-                        input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
-                    else:
-                        input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
+            # if self.augmentation_cfg is not None:
+            #     input_pts[:, :3] = torch.matmul(input_pts[:, :3], m)
+            #     if self.has_normal:
+            #         inv_trans_m = torch.inverse(m).transpose(0, 1)
+            #         if self.has_color:
+            #             input_pts[:, 6:9] = torch.matmul(input_pts[:, 6:9], inv_trans_m)
+            #         else:
+            #             input_pts[:, 3:6] = torch.matmul(input_pts[:, 3:6], inv_trans_m)
                 
-                if self.has_color and self.augmentation_cfg.color:
-                    color_rand = torch.randn(3) * 0.05
-                    input_pts[:, 3:6] += color_rand
+            #     if self.has_color and self.augmentation_cfg.color:
+            #         color_rand = torch.randn(3) * 0.05
+            #         input_pts[:, 3:6] += color_rand
         
         if self.stage == Stage.stage1:
             if not self.has_normal and not self.has_color:

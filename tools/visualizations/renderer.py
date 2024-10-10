@@ -1,7 +1,7 @@
 import os
 import logging
 import trimesh
-import pyrender
+# import pyrender
 import imageio
 import time
 from io import BytesIO
@@ -16,8 +16,7 @@ from matplotlib import cm
 
 log = logging.getLogger('renderer')
 
-from pyrender.constants import (DEFAULT_SCENE_SCALE,
-                                DEFAULT_Z_FAR, DEFAULT_Z_NEAR)
+# from pyrender.constants import (DEFAULT_SCENE_SCALE, DEFAULT_Z_FAR, DEFAULT_Z_NEAR)
 
 os.environ['PYOPENGL_PLATFORM'] = 'egl'
 
@@ -33,7 +32,7 @@ class Renderer:
         self.point_cloud = None
         self.trimesh_list = []
         self.point_cloud_list = []
-        self.scene = pyrender.Scene()
+        # self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
         self.vertex_normals = None
         self.caption = None
@@ -56,7 +55,7 @@ class Renderer:
         self.point_cloud = None
         self.trimesh_list = []
         self.point_cloud_list = []
-        self.scene = pyrender.Scene()
+        # self.scene = pyrender.Scene()
         self.scene.ambient_light = [1.0, 1.0, 1.0]
         self.vertex_normals = None
 
@@ -149,7 +148,7 @@ class Renderer:
             transformation[:3, 3] += pos + axes[i] * (1 - Renderer.head_body_ratio) / 2 * length
             transformations.append(transformation)
         arrow = Renderer.draw_arrow(color, radius, length)
-        arrows = pyrender.Mesh.from_trimesh(arrow, poses=transformations)
+        # arrows = pyrender.Mesh.from_trimesh(arrow, poses=transformations)
         self.scene.add(arrows)
 
     def add_trimesh_arrows(self, positions, axes, colors=[None], radius=0.01, length=0.5, curl=False):
@@ -238,17 +237,16 @@ class Renderer:
             self._merge_geometries()
         if self.trimesh is not None:
             log.debug('add trimesh to scene')
-            mesh = pyrender.Mesh.from_trimesh(self.trimesh, smooth=False)
+            # mesh = pyrender.Mesh.from_trimesh(self.trimesh, smooth=False)
             self.scene.add(mesh)
         if self.point_cloud is not None:
             log.debug('add point cloud to scene')
             rgb_color = self.point_cloud.colors.astype(float) / 255.0
             rgb_color[:, :3] = rgb_color[:, :3] * rgb_color[:, 3].reshape(-1, 1)
-            if self.vertex_normals is None:
-                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
-            else:
-                point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color,
-                                                        normals=self.vertex_normals)
+            # if self.vertex_normals is None:
+                # point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color)
+            # else:
+                # point_cloud = pyrender.Mesh.from_points(self.point_cloud.vertices, colors=rgb_color, normals=self.vertex_normals)
             self.scene.add(point_cloud)
 
     def show(self, window_size=None, window_name='Default Renderer', non_block=False):
@@ -256,24 +254,20 @@ class Renderer:
         if window_size is None:
             window_size = [800, 600]
         if non_block:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
-                                point_size=self.point_size,
-                                caption=self.caption, run_in_thread=True)
+            # v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size, caption=self.caption, run_in_thread=True)
 
             time.sleep(1.0)
             v.close_external()
             while v.is_active:
                 pass
-        else:
-            v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name,
-                                point_size=self.point_size,
-                                caption=self.caption)
+        # else:
+            # v = pyrender.Viewer(self.scene, viewport_size=window_size, window_title=window_name, point_size=self.point_size, caption=self.caption)
 
     def _compute_initial_camera_pose(self, angle=0):
         centroid = self.scene.centroid
         scale = self.scene.scale
         if scale == 0.0:
-            scale = DEFAULT_SCENE_SCALE
+            scale = 1.0
 
         look_at_pos = centroid
         h_fov = np.pi / 6.0
@@ -297,16 +291,15 @@ class Renderer:
 
         if fig_size is None:
             fig_size = [1024, 768]
-        renderer = pyrender.OffscreenRenderer(viewport_width=fig_size[0], viewport_height=fig_size[1],
-                                              point_size=self.point_size)
-        z_far = max(self.scene.scale * 10.0, DEFAULT_Z_FAR)
+        # renderer = pyrender.OffscreenRenderer(viewport_width=fig_size[0], viewport_height=fig_size[1], point_size=self.point_size)
+        z_far = max(self.scene.scale * 10.0, 10.0)
         if self.scene.scale == 0:
-            z_near = DEFAULT_Z_NEAR
+            z_near = 1.0
         else:
-            z_near = min(self.scene.scale / 10.0, DEFAULT_Z_NEAR)
-        cam = pyrender.PerspectiveCamera(yfov=np.pi / 6.0, znear=z_near, zfar=z_far)
+            z_near = min(self.scene.scale / 10.0, 1.0)
+        # cam = pyrender.PerspectiveCamera(yfov=np.pi / 6.0, znear=z_near, zfar=z_far)
         cam_pose = self._compute_initial_camera_pose()
-        cam_node = pyrender.Node(camera=cam, matrix=cam_pose)
+        # cam_node = pyrender.Node(camera=cam, matrix=cam_pose)
         self.scene.add_node(cam_node)
 
         if as_gif:
@@ -315,8 +308,8 @@ class Renderer:
                 for i in range(0, 360, 10):
                     transform = self._compute_initial_camera_pose(np.pi / 180 * i)
                     self.scene.set_pose(cam_node, pose=transform)
-                    color, depth = renderer.render(self.scene, pyrender.constants.RenderFlags.SKIP_CULL_FACES)
-                    writer.append_data(color)
+                    # color, depth = renderer.render(self.scene, pyrender.constants.RenderFlags.SKIP_CULL_FACES)
+                    # writer.append_data(color)
         else:
             color, depth = renderer.render(self.scene)
             image = Image.fromarray(color.astype('uint8'), 'RGB')
